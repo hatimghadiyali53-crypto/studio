@@ -18,6 +18,7 @@ import {
   ClipboardList,
   ArrowRightLeft,
   AreaChart,
+  CalendarCheck,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/roster", label: "Roster", icon: CalendarDays },
   { href: "/inventory", label: "Inventory", icon: Warehouse },
   { href: "/tasks", label: "Tasks", icon: ClipboardList },
+  { href: "/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/shift-swap", label: "Shift Swap", icon: ArrowRightLeft },
   { href: "/reports", label: "Reports", icon: AreaChart },
 ];
@@ -73,5 +75,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    

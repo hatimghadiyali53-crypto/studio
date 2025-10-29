@@ -32,4 +32,11 @@ export type RosterShift = {
   }
 }
 
-    
+export type AttendanceRecord = {
+  id: string;
+  employeeId: string;
+  date: string;
+  clockInTime: string;
+  clockOutTime: string | null;
+  status: 'Clocked In' | 'Clocked Out' | 'Late';
+};

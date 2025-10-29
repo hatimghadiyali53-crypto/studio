@@ -1,4 +1,4 @@
-import type { Employee, Task, InventoryItem, RosterShift } from './types';
+import type { Employee, Task, InventoryItem, RosterShift, AttendanceRecord } from './types';
 
 export const employees: Employee[] = [
   { id: 'emp-1', name: 'Alice', email: 'alice@paradise.scoop', role: 'Shift Lead', onboardingStatus: 'Completed', store: 'Coomera' },
@@ -37,6 +37,12 @@ export const roster: RosterShift[] = [
     { employeeId: 'emp-4', shifts: { Monday: '9AM-5PM', Tuesday: '9AM-5PM', Wednesday: '9AM-5PM', Thursday: '9AM-5PM', Friday: '9AM-5PM' } },
     { employeeId: 'emp-5', shifts: { Monday: '9AM-1PM', Tuesday: '9AM-1PM', Wednesday: '9AM-1PM', Thursday: 'OFF', Friday: 'OFF' } },
     { employeeId: 'emp-6', shifts: { Monday: 'OFF', Tuesday: '2PM-8PM', Wednesday: '2PM-8PM', Thursday: '2PM-8PM', Friday: '2PM-8PM' } },
-]
+];
 
-    
+export const attendance: AttendanceRecord[] = [
+    { id: 'att-1', employeeId: 'emp-1', date: '2024-07-29', clockInTime: '09:05', clockOutTime: '17:02', status: 'Late' },
+    { id: 'att-2', employeeId: 'emp-2', date: '2024-07-29', clockInTime: '12:00', clockOutTime: '20:05', status: 'Clocked Out' },
+    { id: 'att-3', employeeId: 'emp-3', date: '2024-07-29', clockInTime: '12:00', clockOutTime: null, status: 'Clocked In' },
+    { id: 'att-4', employeeId: 'emp-4', date: '2024-07-29', clockInTime: '08:58', clockOutTime: '17:00', status: 'Clocked Out' },
+    { id: 'att-5', employeeId: 'emp-6', date: '2024-07-29', clockInTime: '14:00', clockOutTime: '20:00', status: 'Clocked Out' },
+];
