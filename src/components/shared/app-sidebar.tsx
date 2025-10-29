@@ -26,7 +26,6 @@ import {
   LogIn,
 } from "lucide-react";
 import { useAuth, useUser } from "@/firebase";
-import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -63,7 +62,7 @@ export function AppSidebar() {
       <SidebarMenu className="flex-1">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href}>
+            <Link href={item.href} passHref>
               <SidebarMenuButton
                 isActive={pathname === item.href}
                 tooltip={{
@@ -115,17 +114,17 @@ export function AppSidebar() {
                 <span>Logout</span>
               </SidebarMenuButton>
             ) : (
-              <SidebarMenuButton
-                as="a"
-                href="/login"
-                tooltip={{
-                  children: "Login",
-                  className: "bg-primary text-primary-foreground",
-                }}
-              >
-                <LogIn />
-                <span>Login</span>
-              </SidebarMenuButton>
+                <Link href="/login" passHref>
+                    <SidebarMenuButton
+                        tooltip={{
+                        children: "Login",
+                        className: "bg-primary text-primary-foreground",
+                        }}
+                    >
+                        <LogIn />
+                        <span>Login</span>
+                    </SidebarMenuButton>
+              </Link>
             )}
           </SidebarMenuItem>
         </SidebarMenu>
