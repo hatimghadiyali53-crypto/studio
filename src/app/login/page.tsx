@@ -116,7 +116,7 @@ export default function LoginPage() {
             Welcome to ScoopSmart
           </CardTitle>
           <CardDescription>
-            Sign in or create an account to manage your ice cream parlor.
+            Sign in or create an account to manage your Baskin Robbins store.
           </CardDescription>
         </CardHeader>
         <CardContent>
