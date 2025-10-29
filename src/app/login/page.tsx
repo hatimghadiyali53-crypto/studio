@@ -33,6 +33,8 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { IceCream2, Building } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { employees } from "@/lib/data";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   companyCode: z.string().min(1, { message: "Please select a store location." }),
@@ -52,6 +54,7 @@ export default function LoginPage() {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -77,19 +80,26 @@ export default function LoginPage() {
   }
 
   function onSignIn(values: z.infer<typeof formSchema>) {
-    // Here you would typically use the companyCode to select the correct Firebase project or data partition
-    console.log("Company Code:", values.companyCode);
+    const employee = employees.find(e => e.email === values.email);
+    if (!employee || employee.store !== values.companyCode) {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: "Invalid store location for this email address.",
+      });
+      return;
+    }
     initiateEmailSignIn(auth, values.email, values.password);
   }
 
   function onSignUp(values: z.infer<typeof formSchema>) {
-    console.log("Company Code:", values.companyCode);
+    // For now, we'll allow signup and you can assign them a store later.
+    // In a real app, you'd likely have an admin-only flow for creating users.
     initiateEmailSignUp(auth, values.email, values.password);
   }
 
   function onGoogleSignIn() {
-    // Google Sign-In would also need to be aware of the company code, which can be complex.
-    // For now, we'll keep it as is.
+    // Google Sign-In would also need a more complex flow to associate a store.
     initiateGoogleSignIn(auth);
   }
 
