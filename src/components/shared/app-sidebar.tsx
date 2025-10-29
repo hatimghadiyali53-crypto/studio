@@ -24,6 +24,7 @@ import {
   IceCream2,
   LogOut,
   LogIn,
+  AreaChart,
 } from "lucide-react";
 import { useAuth, useUser } from "@/firebase";
 
@@ -34,6 +35,7 @@ const navItems = [
   { href: "/inventory", label: "Inventory", icon: Warehouse },
   { href: "/tasks", label: "Tasks", icon: ClipboardList },
   { href: "/shift-swap", label: "Shift Swap", icon: ArrowRightLeft },
+  { href: "/reports", label: "Reports", icon: AreaChart },
 ];
 
 export function AppSidebar() {
