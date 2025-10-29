@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/shared/app-sidebar';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: 'Paradise ScoopSmart',
@@ -23,16 +24,20 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
       </head>
       <body className={cn("font-body antialiased", "min-h-screen bg-background")}>
-        <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset>
-              <div className="p-4 sm:p-6 lg:p-8">
-                {children}
-              </div>
-            </SidebarInset>
-        </SidebarProvider>
+        <FirebaseClientProvider>
+          <SidebarProvider>
+              <AppSidebar />
+              <SidebarInset>
+                <div className="p-4 sm:p-6 lg:p-8">
+                  {children}
+                </div>
+              </SidebarInset>
+          </SidebarProvider>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>
   );
 }
+
+    

@@ -8,7 +8,10 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  SidebarSeparator,
+  SidebarGroup,
 } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   LayoutDashboard,
   Users,
@@ -18,7 +21,9 @@ import {
   ArrowRightLeft,
   IceCream2,
   LogOut,
+  LogIn,
 } from "lucide-react";
+import { useAuth, useUser } from "@/firebase";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -31,6 +36,12 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+
+  const handleLogout = () => {
+    auth.signOut();
+  };
 
   return (
     <Sidebar>
@@ -61,24 +72,61 @@ export function AppSidebar() {
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
+      <SidebarSeparator />
       <SidebarFooter>
+        {isUserLoading ? (
+          <SidebarGroup>
+            {/* You can add a skeleton loader here */}
+          </SidebarGroup>
+        ) : user ? (
+          <SidebarGroup>
+             <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton tooltip={{children: "User Profile"}} asChild>
+                        <a href="#">
+                            <Avatar className="h-7 w-7">
+                                <AvatarImage src={user.photoURL || undefined} alt="User" />
+                                <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{user.displayName || user.email}</span>
+                        </a >
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        ) : null}
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip={{
-                children: "Logout",
-                className: "bg-primary text-primary-foreground",
-              }}
-            >
-              <a href="#">
+            {user ? (
+              <SidebarMenuButton
+                onClick={handleLogout}
+                tooltip={{
+                  children: "Logout",
+                  className: "bg-primary text-primary-foreground",
+                }}
+              >
                 <LogOut />
                 <span>Logout</span>
-              </a>
-            </SidebarMenuButton>
+              </SidebarMenuButton>
+            ) : (
+              <SidebarMenuButton
+                asChild
+                tooltip={{
+                  children: "Login",
+                  className: "bg-primary text-primary-foreground",
+                }}
+              >
+                <a href="/login">
+                  <LogIn />
+                  <span>Login</span>
+                </a>
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );
 }
+
+    

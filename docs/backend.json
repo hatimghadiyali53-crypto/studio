@@ -342,7 +342,8 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google.com"
     ]
   },
   "firestore": {
@@ -507,3 +508,5 @@
     "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability for the Paradise ScoopSmart application. We leverage denormalization and structural segregation to create a robust security posture.  Employee data is stored under `/employees/{employeeId}` ensuring path-based ownership. Roster, Shifts, Tasks, and TaskAssignments are structured under `/employees/{employeeId}` for ownership and authorization independence. Inventory data, including items and logs, is kept separate under `/inventory_items` and `/inventory_logs` as these are likely managed at an organizational level, not employee-specific. ShiftSwapRequests and TakeHomeWeightLogs are kept under `/shift_swap_requests` and `/take_home_weight_logs` respectively. This facilitates querying and avoids mixing data with different access control needs in the same collection, supporting QAPs. The design explicitly avoids `get()` calls in security rules by denormalizing relevant authorization data where needed, ensuring atomic operations and simplifying debugging."
   }
 }
+
+    
