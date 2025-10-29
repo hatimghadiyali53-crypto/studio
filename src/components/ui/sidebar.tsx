@@ -536,8 +536,8 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLAnchorElement,
-  React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+  HTMLSpanElement,
+  React.HTMLAttributes<HTMLSpanElement> & {
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
   } & VariantProps<typeof sidebarMenuButtonVariants>
@@ -556,7 +556,7 @@ const SidebarMenuButton = React.forwardRef<
     const { isMobile, state } = useSidebar()
 
     const button = (
-       <a
+       <span
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
@@ -578,7 +578,9 @@ const SidebarMenuButton = React.forwardRef<
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger asChild>
+          {button}
+        </TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
@@ -760,3 +762,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
