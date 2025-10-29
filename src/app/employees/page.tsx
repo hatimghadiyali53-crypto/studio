@@ -63,7 +63,9 @@ const onboardingQuestions = [
 ]
 
 export default function EmployeesPage() {
-  const [open, setOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -86,13 +88,18 @@ export default function EmployeesPage() {
     };
     setEmployees(currentEmployees => [...currentEmployees, newEmployee]);
     form.reset();
-    setOpen(false);
+    setAddDialogOpen(false);
+  }
+
+  const handleViewClick = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setViewDialogOpen(true);
   }
 
   return (
     <>
       <PageHeader title="Employees" description="Manage your team members and their onboarding status.">
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -219,7 +226,7 @@ export default function EmployeesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleViewClick(employee)}>
                       View
                     </Button>
                   </TableCell>
@@ -229,6 +236,47 @@ export default function EmployeesPage() {
           </Table>
         </CardContent>
       </Card>
+      
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Employee Details</DialogTitle>
+          </DialogHeader>
+          {selectedEmployee && (
+            <div className="space-y-4">
+               <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                    <AvatarImage src={selectedEmployee.avatarUrl} alt={selectedEmployee.name} data-ai-hint="person smiling" />
+                    <AvatarFallback>{selectedEmployee.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                    <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
+                    <p className="text-muted-foreground">{selectedEmployee.email}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <FormLabel>Role</FormLabel>
+                  <p>{selectedEmployee.role}</p>
+                </div>
+                <div>
+                  <FormLabel>Onboarding</FormLabel>
+                   <Badge
+                      variant={
+                        selectedEmployee.onboardingStatus === "Completed"
+                          ? "default"
+                          : "secondary"
+                      }
+                      className={selectedEmployee.onboardingStatus === "Completed" ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 block w-fit mt-1" : "block w-fit mt-1"}
+                    >
+                      {selectedEmployee.onboardingStatus}
+                    </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
