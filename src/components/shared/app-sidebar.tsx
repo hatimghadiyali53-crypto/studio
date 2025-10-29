@@ -49,6 +49,10 @@ export function AppSidebar() {
     router.push('/login');
   };
 
+  const handleLogin = () => {
+    router.push('/login');
+  }
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -62,17 +66,17 @@ export function AppSidebar() {
       <SidebarMenu className="flex-1">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href}>
-              <SidebarMenuButton
-                isActive={pathname === item.href}
-                tooltip={{
-                  children: item.label,
-                  className: "bg-primary text-primary-foreground",
-                }}
-              >
-                <item.icon />
-                <span>{item.label}</span>
-              </SidebarMenuButton>
+              <Link href={item.href} passHref>
+                <SidebarMenuButton
+                    isActive={pathname === item.href}
+                    tooltip={{
+                    children: item.label,
+                    className: "bg-primary text-primary-foreground",
+                    }}
+                >
+                    <item.icon />
+                    <span>{item.label}</span>
+                </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
         ))}
@@ -87,7 +91,7 @@ export function AppSidebar() {
           <SidebarGroup>
              <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{children: "User Profile"}} asChild>
+                    <SidebarMenuButton tooltip={{children: "User Profile"}}>
                         <Link href="#">
                             <Avatar className="h-7 w-7">
                                 <AvatarImage src={user.photoURL || undefined} alt="User" />
@@ -114,17 +118,16 @@ export function AppSidebar() {
                 <span>Logout</span>
               </SidebarMenuButton>
             ) : (
-                <Link href="/login" passHref asChild>
-                    <SidebarMenuButton
-                        tooltip={{
-                        children: "Login",
-                        className: "bg-primary text-primary-foreground",
-                        }}
-                    >
-                        <LogIn />
-                        <span>Login</span>
-                    </SidebarMenuButton>
-              </Link>
+                <SidebarMenuButton
+                    onClick={handleLogin}
+                    tooltip={{
+                    children: "Login",
+                    className: "bg-primary text-primary-foreground",
+                    }}
+                >
+                    <LogIn />
+                    <span>Login</span>
+                </SidebarMenuButton>
             )}
           </SidebarMenuItem>
         </SidebarMenu>
