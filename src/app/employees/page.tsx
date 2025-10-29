@@ -96,7 +96,7 @@ export default function EmployeesPage() {
         email: values.email,
         role: values.role,
         onboardingStatus: "Pending",
-        avatarUrl: `https://picsum.photos/seed/${employees.length + 1}/40/40`
+        avatarUrl: ""
     };
     setEmployees(currentEmployees => [...currentEmployees, newEmployee]);
     form.reset();
