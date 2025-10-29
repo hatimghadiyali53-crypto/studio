@@ -28,5 +28,3 @@ export function initiateGoogleSignIn(authInstance: Auth): void {
   const provider = new GoogleAuthProvider();
   signInWithPopup(authInstance, provider);
 }
-
-    

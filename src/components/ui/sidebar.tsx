@@ -539,7 +539,7 @@ const SidebarMenuButton = React.forwardRef<
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
-    asChild?: boolean
+    as?: React.ElementType
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(
   (
@@ -548,14 +548,14 @@ const SidebarMenuButton = React.forwardRef<
       variant = "default",
       size = "default",
       tooltip,
-      asChild,
+      as,
       className,
       ...props
     },
     ref
   ) => {
     const { isMobile, state } = useSidebar()
-    const Comp = asChild ? Slot : "button"
+    const Comp = as || 'button';
 
     const button = (
       <Comp
@@ -764,5 +764,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
