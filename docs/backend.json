@@ -1,0 +1,509 @@
+{
+  "entities": {
+    "Employee": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Employee",
+      "type": "object",
+      "description": "Represents an employee within the Paradise ScoopSmart system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Employee entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the employee."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the employee."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the employee.",
+          "format": "email"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The phone number of the employee."
+        },
+        "hireDate": {
+          "type": "string",
+          "description": "The date the employee was hired.",
+          "format": "date-time"
+        },
+        "position": {
+          "type": "string",
+          "description": "The job title or position of the employee."
+        },
+        "onboardingComplete": {
+          "type": "boolean",
+          "description": "Indicates whether the employee has completed the onboarding process."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "hireDate",
+        "position",
+        "onboardingComplete"
+      ]
+    },
+    "Roster": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Roster",
+      "type": "object",
+      "description": "Represents the employee roster for a specific period.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Roster entity."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The starting date of the roster period.",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "The ending date of the roster period.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "startDate",
+        "endDate"
+      ]
+    },
+    "Shift": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Shift",
+      "type": "object",
+      "description": "Represents a single shift within a roster.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Shift entity."
+        },
+        "rosterId": {
+          "type": "string",
+          "description": "Reference to Roster. (Relationship: Roster 1:N Shift)"
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to Employee. (Relationship: Employee 1:N Shift)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "The start time of the shift.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "The end time of the shift.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "rosterId",
+        "employeeId",
+        "startTime",
+        "endTime"
+      ]
+    },
+    "InventoryItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryItem",
+      "type": "object",
+      "description": "Represents an item in the inventory.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the InventoryItem entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the inventory item."
+        },
+        "currentStock": {
+          "type": "number",
+          "description": "The current quantity of the item in stock."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of measurement for the item (e.g., 'tub', 'kg')."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "currentStock",
+        "unit"
+      ]
+    },
+    "InventoryLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryLog",
+      "type": "object",
+      "description": "Represents a log entry for changes in inventory.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the InventoryLog entity."
+        },
+        "inventoryItemId": {
+          "type": "string",
+          "description": "Reference to InventoryItem. (Relationship: InventoryItem 1:N InventoryLog)"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time of the inventory change.",
+          "format": "date-time"
+        },
+        "changeQuantity": {
+          "type": "number",
+          "description": "The quantity of the item added or removed (positive for in, negative for out)."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason for the inventory change (e.g., 'Restock', 'Sale', 'Waste')."
+        }
+      },
+      "required": [
+        "id",
+        "inventoryItemId",
+        "timestamp",
+        "changeQuantity",
+        "reason"
+      ]
+    },
+    "Task": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Task",
+      "type": "object",
+      "description": "Represents a task to be performed.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Task entity."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the task to be performed."
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "The date the task is due.",
+          "format": "date-time"
+        },
+        "frequency": {
+          "type": "string",
+          "description": "The frequency of the task (e.g., 'Daily', 'Weekly', 'Monthly')."
+        }
+      },
+      "required": [
+        "id",
+        "description",
+        "dueDate",
+        "frequency"
+      ]
+    },
+    "TaskAssignment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TaskAssignment",
+      "type": "object",
+      "description": "Represents the assignment of a task to an employee.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the TaskAssignment entity."
+        },
+        "taskId": {
+          "type": "string",
+          "description": "Reference to Task. (Relationship: Task 1:N TaskAssignment)"
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to Employee. (Relationship: Employee 1:N TaskAssignment)"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the task assignment (e.g., 'Pending', 'Completed')."
+        },
+        "completedDate": {
+          "type": "string",
+          "description": "The date the task was completed.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "taskId",
+        "employeeId",
+        "status"
+      ]
+    },
+    "ShiftSwapRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ShiftSwapRequest",
+      "type": "object",
+      "description": "Represents a request for a shift swap between two employees.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ShiftSwapRequest entity."
+        },
+        "requestingEmployeeId": {
+          "type": "string",
+          "description": "Reference to Employee who is requesting the swap."
+        },
+        "offeredShiftId": {
+          "type": "string",
+          "description": "Reference to the Shift being offered for the swap."
+        },
+        "acceptingEmployeeId": {
+          "type": "string",
+          "description": "Reference to Employee who is potentially accepting the swap."
+        },
+        "requestedShiftId": {
+          "type": "string",
+          "description": "Reference to the Shift being requested in exchange."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the shift swap request (e.g., 'Pending', 'Approved', 'Rejected')."
+        },
+        "requestDate": {
+          "type": "string",
+          "description": "The date the swap was requested.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "requestingEmployeeId",
+        "offeredShiftId",
+        "acceptingEmployeeId",
+        "requestedShiftId",
+        "status",
+        "requestDate"
+      ]
+    },
+    "TakeHomeWeightLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TakeHomeWeightLog",
+      "type": "object",
+      "description": "Represents a log of take-home ice cream weight checks to ensure compliance.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the TakeHomeWeightLog entry."
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee who performed the weight check."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time when the weight check was performed.",
+          "format": "date-time"
+        },
+        "actualWeight": {
+          "type": "number",
+          "description": "The measured weight of the take-home ice cream."
+        },
+        "expectedWeight": {
+          "type": "number",
+          "description": "The expected standard weight of the take-home ice cream."
+        },
+        "variance": {
+          "type": "number",
+          "description": "The variance between the actual and expected weight."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Any additional notes or observations regarding the weight check."
+        }
+      },
+      "required": [
+        "id",
+        "employeeId",
+        "timestamp",
+        "actualWeight",
+        "expectedWeight",
+        "variance"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/employees/{employeeId}",
+        "definition": {
+          "entityName": "Employee",
+          "schema": {
+            "$ref": "#/backend/entities/Employee"
+          },
+          "description": "Stores employee profiles, accessible only to the employee and authorized personnel.",
+          "params": [
+            {
+              "name": "employeeId",
+              "description": "The unique identifier for the employee."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/employees/{employeeId}/rosters/{rosterId}",
+        "definition": {
+          "entityName": "Roster",
+          "schema": {
+            "$ref": "#/backend/entities/Roster"
+          },
+          "description": "Stores rosters for each employee.  Includes denormalized 'employeeId' for authorization independence.",
+          "params": [
+            {
+              "name": "employeeId",
+              "description": "The unique identifier for the employee."
+            },
+            {
+              "name": "rosterId",
+              "description": "The unique identifier for the roster."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/employees/{employeeId}/shifts/{shiftId}",
+        "definition": {
+          "entityName": "Shift",
+          "schema": {
+            "$ref": "#/backend/entities/Shift"
+          },
+          "description": "Stores shift details for each employee. Includes denormalized 'employeeId' for authorization independence.",
+          "params": [
+            {
+              "name": "employeeId",
+              "description": "The unique identifier for the employee."
+            },
+            {
+              "name": "shiftId",
+              "description": "The unique identifier for the shift."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/inventory_items/{inventoryItemId}",
+        "definition": {
+          "entityName": "InventoryItem",
+          "schema": {
+            "$ref": "#/backend/entities/InventoryItem"
+          },
+          "description": "Stores information about inventory items.",
+          "params": [
+            {
+              "name": "inventoryItemId",
+              "description": "The unique identifier for the inventory item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/inventory_logs/{inventoryLogId}",
+        "definition": {
+          "entityName": "InventoryLog",
+          "schema": {
+            "$ref": "#/backend/entities/InventoryLog"
+          },
+          "description": "Stores logs of inventory changes.",
+          "params": [
+            {
+              "name": "inventoryLogId",
+              "description": "The unique identifier for the inventory log."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": {
+            "$ref": "#/backend/entities/Task"
+          },
+          "description": "Stores task definitions.",
+          "params": [
+            {
+              "name": "taskId",
+              "description": "The unique identifier for the task."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/employees/{employeeId}/task_assignments/{taskAssignmentId}",
+        "definition": {
+          "entityName": "TaskAssignment",
+          "schema": {
+            "$ref": "#/backend/entities/TaskAssignment"
+          },
+          "description": "Stores task assignments for each employee. Includes denormalized 'employeeId' for authorization independence.",
+          "params": [
+            {
+              "name": "employeeId",
+              "description": "The unique identifier for the employee."
+            },
+            {
+              "name": "taskAssignmentId",
+              "description": "The unique identifier for the task assignment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/shift_swap_requests/{shiftSwapRequestId}",
+        "definition": {
+          "entityName": "ShiftSwapRequest",
+          "schema": {
+            "$ref": "#/backend/entities/ShiftSwapRequest"
+          },
+          "description": "Stores shift swap requests.",
+          "params": [
+            {
+              "name": "shiftSwapRequestId",
+              "description": "The unique identifier for the shift swap request."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/take_home_weight_logs/{takeHomeWeightLogId}",
+        "definition": {
+          "entityName": "TakeHomeWeightLog",
+          "schema": {
+            "$ref": "#/backend/entities/TakeHomeWeightLog"
+          },
+          "description": "Stores logs of take-home ice cream weight checks.",
+          "params": [
+            {
+              "name": "takeHomeWeightLogId",
+              "description": "The unique identifier for the take-home weight log."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability for the Paradise ScoopSmart application. We leverage denormalization and structural segregation to create a robust security posture.  Employee data is stored under `/employees/{employeeId}` ensuring path-based ownership. Roster, Shifts, Tasks, and TaskAssignments are structured under `/employees/{employeeId}` for ownership and authorization independence. Inventory data, including items and logs, is kept separate under `/inventory_items` and `/inventory_logs` as these are likely managed at an organizational level, not employee-specific. ShiftSwapRequests and TakeHomeWeightLogs are kept under `/shift_swap_requests` and `/take_home_weight_logs` respectively. This facilitates querying and avoids mixing data with different access control needs in the same collection, supporting QAPs. The design explicitly avoids `get()` calls in security rules by denormalizing relevant authorization data where needed, ensuring atomic operations and simplifying debugging."
+  }
+}

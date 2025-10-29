@@ -1,0 +1,207 @@
+/**
+ * @fileoverview Firestore Security Rules for Paradise ScoopSmart.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for employee-related data
+ * and open access for general inventory and task data. Denormalization is used
+ * to avoid costly `get()` calls in the rules.
+ *
+ * Data Structure:
+ * - /employees/{employeeId}: Employee profiles, accessible only to the employee.
+ * - /employees/{employeeId}/rosters/{rosterId}: Rosters owned by the employee.
+ * - /employees/{employeeId}/shifts/{shiftId}: Shifts owned by the employee.
+ * - /employees/{employeeId}/task_assignments/{taskAssignmentId}: Task assignments owned by the employee.
+ * - /inventory_items/{inventoryItemId}: Inventory items (public read).
+ * - /inventory_logs/{inventoryLogId}: Inventory logs (public read).
+ * - /tasks/{taskId}: Tasks (public read).
+ * - /shift_swap_requests/{shiftSwapRequestId}: Shift swap requests.
+ * - /take_home_weight_logs/{takeHomeWeightLogId}: Take home weight logs.
+ *
+ * Key Security Decisions:
+ * - Employee data is strictly controlled by the employee's ID.
+ * - Listing of employees or employee subcollections is allowed only to the owner.
+ * - Inventory and Task data is publicly readable, but write access is not defined (TODO: Implement owner-only writes once the schema is updated).
+ * - The rules explicitly avoid `get()` calls by denormalizing authorization data.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Protects employee profiles, allowing access only to the employee.
+     * @path /employees/{employeeId}
+     * @allow (get, list): if isSignedIn() && isOwner(employeeId)
+     * @allow (create): if isSignedIn() && isOwner(employeeId)
+     * @allow (update, delete): if isSignedIn() && isExistingOwner(employeeId)
+     * @deny (create): if !isSignedIn() || !isOwner(employeeId)
+     * @deny (update, delete): if !isSignedIn() || !isExistingOwner(employeeId)
+     * @principle Enforces document ownership for all operations.
+     */
+    match /employees/{employeeId} {
+      // Read rules
+      allow get: if isSignedIn() && isOwner(employeeId);
+      allow list: if isSignedIn() && isOwner(employeeId);
+
+      // Write rules
+      allow create: if isSignedIn() && isOwner(employeeId);
+      allow update: if isSignedIn() && isExistingOwner(employeeId);
+      allow delete: if isSignedIn() && isExistingOwner(employeeId);
+    }
+
+    /**
+     * @description Protects rosters, allowing access only to the employee.
+     * @path /employees/{employeeId}/rosters/{rosterId}
+     * @allow (get, list): if isSignedIn() && isOwner(employeeId)
+     * @allow (create): if isSignedIn() && isOwner(employeeId)
+     * @allow (update, delete): if isSignedIn() && isExistingOwner(employeeId)
+     * @deny (create): if !isSignedIn() || !isOwner(employeeId)
+     * @deny (update, delete): if !isSignedIn() || !isExistingOwner(employeeId)
+     * @principle Enforces document ownership for all operations.
+     */
+    match /employees/{employeeId}/rosters/{rosterId} {
+      // Read rules
+      allow get: if isSignedIn() && isOwner(employeeId);
+      allow list: if isSignedIn() && isOwner(employeeId);
+
+      // Write rules
+      allow create: if isSignedIn() && isOwner(employeeId);
+      allow update: if isSignedIn() && isExistingOwner(employeeId);
+      allow delete: if isSignedIn() && isExistingOwner(employeeId);
+    }
+
+    /**
+     * @description Protects shifts, allowing access only to the employee.
+     * @path /employees/{employeeId}/shifts/{shiftId}
+     * @allow (get, list): if isSignedIn() && isOwner(employeeId)
+     * @allow (create): if isSignedIn() && isOwner(employeeId)
+     * @allow (update, delete): if isSignedIn() && isExistingOwner(employeeId)
+     * @deny (create): if !isSignedIn() || !isOwner(employeeId)
+     * @deny (update, delete): if !isSignedIn() || !isExistingOwner(employeeId)
+     * @principle Enforces document ownership for all operations.
+     */
+    match /employees/{employeeId}/shifts/{shiftId} {
+      // Read rules
+      allow get: if isSignedIn() && isOwner(employeeId);
+      allow list: if isSignedIn() && isOwner(employeeId);
+
+      // Write rules
+      allow create: if isSignedIn() && isOwner(employeeId);
+      allow update: if isSignedIn() && isExistingOwner(employeeId);
+      allow delete: if isSignedIn() && isExistingOwner(employeeId);
+    }
+
+    /**
+     * @description Allows public read access to inventory items. Write access requires owner validation.
+     * @path /inventory_items/{inventoryItemId}
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Allows public read, but restricts writes to owners (once implemented).
+     */
+    match /inventory_items/{inventoryItemId} {
+      // Read rules
+      allow get, list: if true;
+
+      // Write rules
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      // CRITICAL: Cannot implement owner-only writes. The 'InventoryItem' entity is missing an 'ownerId' or 'authorId' field.
+    }
+
+    /**
+     * @description Allows public read access to inventory logs. Write access requires owner validation.
+     * @path /inventory_logs/{inventoryLogId}
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Allows public read, but restricts writes to owners (once implemented).
+     */
+    match /inventory_logs/{inventoryLogId} {
+      // Read rules
+      allow get, list: if true;
+
+      // Write rules
+       allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      // CRITICAL: Cannot implement owner-only writes. The 'InventoryLog' entity is missing an 'ownerId' or 'authorId' field.
+    }
+
+    /**
+     * @description Allows public read access to tasks. Write access requires owner validation.
+     * @path /tasks/{taskId}
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Allows public read, but restricts writes to owners (once implemented).
+     */
+    match /tasks/{taskId} {
+      // Read rules
+      allow get, list: if true;
+
+      // Write rules
+       allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      // CRITICAL: Cannot implement owner-only writes. The 'Task' entity is missing an 'ownerId' or 'authorId' field.
+    }
+
+    /**
+     * @description Protects task assignments, allowing access only to the employee.
+     * @path /employees/{employeeId}/task_assignments/{taskAssignmentId}
+     * @allow (get, list): if isSignedIn() && isOwner(employeeId)
+     * @allow (create): if isSignedIn() && isOwner(employeeId)
+     * @allow (update, delete): if isSignedIn() && isExistingOwner(employeeId)
+     * @deny (create): if !isSignedIn() || !isOwner(employeeId)
+     * @deny (update, delete): if !isSignedIn() || !isExistingOwner(employeeId)
+     * @principle Enforces document ownership for all operations.
+     */
+    match /employees/{employeeId}/task_assignments/{taskAssignmentId} {
+      // Read rules
+      allow get: if isSignedIn() && isOwner(employeeId);
+      allow list: if isSignedIn() && isOwner(employeeId);
+
+      // Write rules
+      allow create: if isSignedIn() && isOwner(employeeId);
+      allow update: if isSignedIn() && isExistingOwner(employeeId);
+      allow delete: if isSignedIn() && isExistingOwner(employeeId);
+    }
+
+    /**
+     * @description Protects shift swap requests.
+     * @path /shift_swap_requests/{shiftSwapRequestId}
+     */
+    match /shift_swap_requests/{shiftSwapRequestId} {
+      // Read rules - open to signed-in users for now (Prototype)
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      // Write rules - open to signed-in users for now (Prototype)
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Protects take home weight logs.
+     * @path /take_home_weight_logs/{takeHomeWeightLogId}
+     */
+    match /take_home_weight_logs/{takeHomeWeightLogId} {
+      // Read rules - open to signed-in users for now (Prototype)
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      // Write rules - open to signed-in users for now (Prototype)
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+  }
+
+  // Helper function to determine if the user is signed in.
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  // Helper function to determine if the user is the owner of the document.
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+    // Helper function to determine if the user is the owner of the document, and it exists.
+  function isExistingOwner(userId) {
+    return isSignedIn() && isOwner(userId) && resource != null;
+  }
+}
