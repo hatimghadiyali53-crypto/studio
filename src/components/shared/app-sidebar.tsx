@@ -17,7 +17,6 @@ import {
   Warehouse,
   ClipboardList,
   ArrowRightLeft,
-  IceCream2,
   AreaChart,
 } from "lucide-react";
 
@@ -31,6 +30,16 @@ const navItems = [
   { href: "/reports", label: "Reports", icon: AreaChart },
 ];
 
+const BaskinRobbinsLogo = () => (
+    <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="20" fill="#0073C0"/>
+        <path d="M25 30H45V45C35 45 30 50 30 55V70H25V30Z" fill="#D81B60"/>
+        <path d="M55 30H75V70H55V60C55 55 60 50 65 45C70 40 65 35 60 35H55V30Z" fill="#D81B60"/>
+        <path d="M35 50C40 45 45 45 50 50V70H35V50Z" fill="#FFFFFF"/>
+        <path d="M65 50C60 45 55 45 50 50V70H65V50Z" fill="#FFFFFF"/>
+    </svg>
+)
+
 export function AppSidebar() {
   const pathname = usePathname();
 
@@ -38,9 +47,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <IceCream2 className="h-5 w-5" />
-          </div>
+          <BaskinRobbinsLogo />
           <span className="font-headline text-lg font-bold">ScoopSmart</span>
         </div>
       </SidebarHeader>
@@ -66,3 +73,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    

@@ -31,7 +31,7 @@ import {
 import { useAuth, useUser } from "@/firebase/provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { IceCream2, Building } from "lucide-react";
+import { Building } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { employees } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +43,16 @@ const formSchema = z.object({
     .string()
     .min(6, { message: "Password must be at least 6 characters." }),
 });
+
+const BaskinRobbinsLogo = () => (
+    <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="20" fill="#0073C0"/>
+        <path d="M25 30H45V45C35 45 30 50 30 55V70H25V30Z" fill="#D81B60"/>
+        <path d="M55 30H75V70H55V60C55 55 60 50 65 45C70 40 65 35 60 35H55V30Z" fill="#D81B60"/>
+        <path d="M35 50C40 45 45 45 50 50V70H35V50Z" fill="#FFFFFF"/>
+        <path d="M65 50C60 45 55 45 50 50V70H65V50Z" fill="#FFFFFF"/>
+    </svg>
+)
 
 const GoogleIcon = () => (
     <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
@@ -108,9 +118,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mb-4 flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <IceCream2 className="h-7 w-7" />
-            </div>
+            <BaskinRobbinsLogo />
           </div>
           <CardTitle className="text-2xl font-bold">
             Welcome to Paradise CRM
@@ -207,3 +215,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
