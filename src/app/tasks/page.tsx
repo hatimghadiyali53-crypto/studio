@@ -40,7 +40,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +58,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 const employeeMap = employees.reduce((acc, emp) => {
   acc[emp.id] = emp;
   return acc;
-}, {} as Record<string, Employee>);
+}, {} as Record<string, Omit<Employee, 'avatarUrl'>>);
 
 const formSchema = z.object({
     name: z.string().min(3, "Task name is too short"),
@@ -266,7 +266,6 @@ export default function TasksPage() {
                        {employee && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground sm:hidden mt-1">
                           <Avatar className="h-5 w-5">
-                              <AvatarImage src={employee.avatarUrl} alt={employee.name} data-ai-hint="person smiling" />
                               <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <span>{employee.name}</span>
@@ -277,7 +276,6 @@ export default function TasksPage() {
                     {employee ? (
                         <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                            <AvatarImage src={employee.avatarUrl} alt={employee.name} data-ai-hint="person smiling" />
                             <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <span>{employee.name}</span>
@@ -338,3 +336,5 @@ export default function TasksPage() {
     </>
   );
 }
+
+    

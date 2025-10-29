@@ -4,7 +4,6 @@ export type Employee = {
   email: string;
   role: 'Scooper' | 'Shift Lead' | 'Manager';
   onboardingStatus: 'Pending' | 'Completed';
-  avatarUrl: string;
   store?: 'Coomera' | 'Ipswich' | 'Northlakes';
 };
 
@@ -32,3 +31,5 @@ export type RosterShift = {
     [day: string]: string;
   }
 }
+
+    

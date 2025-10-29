@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { employees, roster as initialRoster } from "@/lib/data";
 import { Download, Pencil, Save } from "lucide-react";
@@ -27,7 +27,7 @@ const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const employeeMap = employees.reduce((acc, emp) => {
   acc[emp.id] = emp;
   return acc;
-}, {} as Record<string, Employee>);
+}, {} as Record<string, Omit<Employee, 'avatarUrl'>>);
 
 export default function RosterPage() {
   const [roster, setRoster] = useState<RosterShift[]>(initialRoster);
@@ -104,7 +104,6 @@ export default function RosterPage() {
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3 mb-4">
                             <Avatar>
-                                <AvatarImage src={employee.avatarUrl} alt={employee.name} data-ai-hint="person smiling" />
                                 <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div>
@@ -160,7 +159,6 @@ export default function RosterPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarImage src={employee.avatarUrl} alt={employee.name} data-ai-hint="person smiling" />
                           <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -196,3 +194,5 @@ export default function RosterPage() {
     </>
   );
 }
+
+    

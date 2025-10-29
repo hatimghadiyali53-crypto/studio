@@ -1,19 +1,13 @@
 import type { Employee, Task, InventoryItem, RosterShift } from './types';
-import { PlaceHolderImages } from './placeholder-images';
-
-const avatarMap = PlaceHolderImages.reduce((acc, img, index) => {
-  acc[index + 1] = img.imageUrl;
-  return acc;
-}, {} as Record<number, string>);
 
 export const employees: Employee[] = [
-  { id: 'emp-1', name: 'Alice', email: 'alice@paradise.scoop', role: 'Shift Lead', onboardingStatus: 'Completed', avatarUrl: avatarMap[1], store: 'Coomera' },
-  { id: 'emp-2', name: 'Bob', email: 'bob@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', avatarUrl: avatarMap[2], store: 'Ipswich' },
-  { id: 'emp-3', name: 'Charlie', email: 'charlie@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', avatarUrl: avatarMap[3], store: 'Northlakes' },
-  { id: 'emp-4', name: 'Diana', email: 'diana@paradise.scoop', role: 'Manager', onboardingStatus: 'Completed', avatarUrl: avatarMap[4], store: 'Coomera' },
-  { id: 'emp-5', name: 'Eve', email: 'eve@paradise.scoop', role: 'Scooper', onboardingStatus: 'Pending', avatarUrl: avatarMap[5], store: 'Ipswich' },
-  { id: 'emp-6', name: 'Frank', email: 'frank@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', avatarUrl: avatarMap[6], store: 'Northlakes' },
-  { id: 'emp-7', name: 'Hatim', email: 'hatim@yopmail.com', role: 'Manager', onboardingStatus: 'Completed', avatarUrl: `https://picsum.photos/seed/7/40/40`, store: 'Coomera' },
+  { id: 'emp-1', name: 'Alice', email: 'alice@paradise.scoop', role: 'Shift Lead', onboardingStatus: 'Completed', store: 'Coomera' },
+  { id: 'emp-2', name: 'Bob', email: 'bob@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', store: 'Ipswich' },
+  { id: 'emp-3', name: 'Charlie', email: 'charlie@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', store: 'Northlakes' },
+  { id: 'emp-4', name: 'Diana', email: 'diana@paradise.scoop', role: 'Manager', onboardingStatus: 'Completed', store: 'Coomera' },
+  { id: 'emp-5', name: 'Eve', email: 'eve@paradise.scoop', role: 'Scooper', onboardingStatus: 'Pending', store: 'Ipswich' },
+  { id: 'emp-6', name: 'Frank', email: 'frank@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', store: 'Northlakes' },
+  { id: 'emp-7', name: 'Hatim', email: 'hatim@yopmail.com', role: 'Manager', onboardingStatus: 'Completed', store: 'Coomera' },
 ];
 
 export const tasks: Task[] = [
@@ -44,3 +38,5 @@ export const roster: RosterShift[] = [
     { employeeId: 'emp-5', shifts: { Monday: '9AM-1PM', Tuesday: '9AM-1PM', Wednesday: '9AM-1PM', Thursday: 'OFF', Friday: 'OFF' } },
     { employeeId: 'emp-6', shifts: { Monday: 'OFF', Tuesday: '2PM-8PM', Wednesday: '2PM-8PM', Thursday: '2PM-8PM', Friday: '2PM-8PM' } },
 ]
+
+    
