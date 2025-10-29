@@ -62,7 +62,7 @@ export function AppSidebar() {
       <SidebarMenu className="flex-1">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} passHref>
+            <Link href={item.href} passHref asChild>
               <SidebarMenuButton
                 isActive={pathname === item.href}
                 tooltip={{
@@ -114,7 +114,7 @@ export function AppSidebar() {
                 <span>Logout</span>
               </SidebarMenuButton>
             ) : (
-                <Link href="/login" passHref>
+                <Link href="/login" passHref asChild>
                     <SidebarMenuButton
                         tooltip={{
                         children: "Login",
