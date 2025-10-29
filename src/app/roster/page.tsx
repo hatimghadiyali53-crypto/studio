@@ -1,11 +1,12 @@
+
+"use client";
+
+import { useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -16,8 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { employees, roster } from "@/lib/data";
-import { Download, Pencil } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { employees, roster as initialRoster } from "@/lib/data";
+import { Download, Pencil, Save } from "lucide-react";
 import type { Employee, RosterShift } from "@/lib/types";
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -27,16 +29,66 @@ const employeeMap = employees.reduce((acc, emp) => {
   return acc;
 }, {} as Record<string, Employee>);
 
-
 export default function RosterPage() {
+  const [roster, setRoster] = useState<RosterShift[]>(initialRoster);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleEditToggle = () => {
+    setIsEditing(!isEditing);
+  };
+
+  const handleShiftChange = (employeeId: string, day: string, value: string) => {
+    setRoster(currentRoster =>
+      currentRoster.map(schedule => {
+        if (schedule.employeeId === employeeId) {
+          return {
+            ...schedule,
+            shifts: {
+              ...schedule.shifts,
+              [day]: value,
+            },
+          };
+        }
+        return schedule;
+      })
+    );
+  };
+
+  const handleExport = () => {
+    const headers = ["Employee", ...weekDays];
+    const csvRows = [headers.join(",")];
+
+    roster.forEach(schedule => {
+      const employee = employeeMap[schedule.employeeId];
+      if (employee) {
+        const row = [
+          `"${employee.name}"`,
+          ...weekDays.map(day => `"${schedule.shifts[day] || 'OFF'}"`)
+        ];
+        csvRows.push(row.join(","));
+      }
+    });
+
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "roster.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <>
       <PageHeader title="Weekly Roster" description="View and manage the employee schedule for the current week.">
-        <Button variant="outline">
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit Roster
+        <Button variant="outline" onClick={handleEditToggle}>
+          {isEditing ? <Save className="mr-2 h-4 w-4" /> : <Pencil className="mr-2 h-4 w-4" />}
+          {isEditing ? "Save Roster" : "Edit Roster"}
         </Button>
-        <Button>
+        <Button onClick={handleExport}>
           <Download className="mr-2 h-4 w-4" />
           Export
         </Button>
@@ -73,12 +125,18 @@ export default function RosterPage() {
                     </TableCell>
                     {weekDays.map((day) => (
                       <TableCell key={day}>
-                        {schedule.shifts[day] === 'OFF' ? (
-                            <span className="text-muted-foreground">OFF</span>
+                        {isEditing ? (
+                          <Input
+                            value={schedule.shifts[day] || ''}
+                            onChange={(e) => handleShiftChange(schedule.employeeId, day, e.target.value)}
+                            className="h-8"
+                          />
+                        ) : schedule.shifts[day] === 'OFF' || !schedule.shifts[day] ? (
+                          <span className="text-muted-foreground">OFF</span>
                         ) : (
-                            <div className="rounded-md bg-secondary px-2 py-1 text-center text-sm text-secondary-foreground">
-                                {schedule.shifts[day]}
-                            </div>
+                          <div className="rounded-md bg-secondary px-2 py-1 text-center text-sm text-secondary-foreground">
+                            {schedule.shifts[day]}
+                          </div>
                         )}
                       </TableCell>
                     ))}
