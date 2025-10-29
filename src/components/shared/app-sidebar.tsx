@@ -1,7 +1,7 @@
 
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
 import {
   Sidebar,
@@ -40,9 +40,11 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const router = useRouter();
 
   const handleLogout = () => {
     auth.signOut();
+    router.push('/login');
   };
 
   return (
