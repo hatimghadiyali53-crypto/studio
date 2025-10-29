@@ -16,12 +16,12 @@ export const employees: Employee[] = [
 ];
 
 export const tasks: Task[] = [
-  { id: 'task-1', name: 'Clean counters & tables', assignedTo: 'emp-2', dueDate: '2024-08-01', status: 'Completed' },
-  { id: 'task-2', name: 'Wipe down freezer glass', assignedTo: 'emp-3', dueDate: '2024-08-01', status: 'Pending' },
-  { id: 'task-3', name: 'Restock napkin dispensers', assignedTo: 'emp-1', dueDate: '2024-08-01', status: 'Completed' },
-  { id: 'task-4', name: 'Mop floor', assignedTo: 'emp-6', dueDate: '2024-08-02', status: 'Pending' },
-  { id: 'task-5', name: 'Check cone inventory', assignedTo: 'emp-1', dueDate: '2024-08-02', status: 'Pending' },
-  { id: 'task-6', name: 'Organize take-home tubs', assignedTo: 'emp-2', dueDate: '2024-08-03', status: 'Completed' },
+  { id: 'task-1', name: 'Clean counters & tables', assignedTo: 'emp-2', dueDate: '2024-08-01', status: 'Completed', category: 'Daily' },
+  { id: 'task-2', name: 'Wipe down freezer glass', assignedTo: 'emp-3', dueDate: '2024-08-01', status: 'Pending', category: 'Daily' },
+  { id: 'task-3', name: 'Restock napkin dispensers', assignedTo: 'emp-1', dueDate: '2024-08-01', status: 'Completed', category: 'Weekly' },
+  { id: 'task-4', name: 'Mop floor', assignedTo: 'emp-6', dueDate: '2024-08-02', status: 'Pending', category: 'Daily' },
+  { id: 'task-5', name: 'Check cone inventory', assignedTo: 'emp-1', dueDate: '2024-08-02', status: 'Pending', category: 'Weekly' },
+  { id: 'task-6', name: 'Organize take-home tubs', assignedTo: 'emp-2', dueDate: '2024-08-03', status: 'Completed', category: 'Monthly' },
 ];
 
 export const inventory: InventoryItem[] = [

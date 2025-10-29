@@ -13,6 +13,7 @@ export type Task = {
   assignedTo: string; // Employee ID
   dueDate: string;
   status: 'Pending' | 'Completed';
+  category: 'Daily' | 'Weekly' | 'Monthly' | 'One-Time';
 };
 
 export type InventoryItem = {

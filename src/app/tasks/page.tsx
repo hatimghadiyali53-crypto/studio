@@ -64,6 +64,7 @@ const formSchema = z.object({
     name: z.string().min(3, "Task name is too short"),
     assignedTo: z.string({ required_error: "Please assign task to an employee."}),
     dueDate: z.date({ required_error: "A due date is required." }),
+    category: z.enum(["Daily", "Weekly", "Monthly", "One-Time"]),
 });
 
 const ITEMS_PER_PAGE = 5;
@@ -82,6 +83,9 @@ export default function TasksPage() {
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
+        defaultValues: {
+            category: "One-Time",
+        }
     });
 
     function onSubmit(values: z.infer<typeof formSchema>) {
@@ -91,6 +95,7 @@ export default function TasksPage() {
             assignedTo: values.assignedTo,
             dueDate: format(values.dueDate, "yyyy-MM-dd"),
             status: "Pending",
+            category: values.category,
         };
         setTasks(currentTasks => [...currentTasks, newTask]);
         form.reset();
@@ -144,26 +149,51 @@ export default function TasksPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="assignedTo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Assign To</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select an employee" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="assignedTo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assign To</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select an employee" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Category</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="Daily">Daily</SelectItem>
+                                    <SelectItem value="Weekly">Weekly</SelectItem>
+                                    <SelectItem value="Monthly">Monthly</SelectItem>
+                                    <SelectItem value="One-Time">One-Time</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
                  <FormField
                   control={form.control}
                   name="dueDate"
@@ -220,6 +250,7 @@ export default function TasksPage() {
             <TableRow>
                 <TableHead>Task</TableHead>
                 <TableHead>Assigned To</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -243,6 +274,9 @@ export default function TasksPage() {
                     ) : (
                         <span className="text-muted-foreground">Unassigned</span>
                     )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{task.category}</Badge>
                     </TableCell>
                     <TableCell>{task.dueDate}</TableCell>
                     <TableCell>
