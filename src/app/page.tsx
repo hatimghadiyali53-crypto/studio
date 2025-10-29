@@ -1,3 +1,9 @@
+
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@/firebase';
 import {
   Card,
   CardContent,
@@ -75,6 +81,23 @@ const recentActivities = [
 ];
 
 export default function DashboardPage() {
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading || !user) {
+    return (
+        <div className="flex h-screen w-screen items-center justify-center">
+            <p>Loading...</p>
+        </div>
+    )
+  }
+
   return (
     <>
       <PageHeader title="Dashboard" />
