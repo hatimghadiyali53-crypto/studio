@@ -221,7 +221,7 @@ export default function EmployeesPage() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar>
-                        <AvatarImage src={employee.avatarUrl} alt={employee.name} data-ai-hint="person smiling" />
+                        <AvatarImage src={employee.avatarUrl} alt={employee.name} />
                         <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div>
@@ -289,7 +289,7 @@ export default function EmployeesPage() {
             <div className="space-y-4">
                <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
-                    <AvatarImage src={selectedEmployee.avatarUrl} alt={selectedEmployee.name} data-ai-hint="person smiling" />
+                    <AvatarImage src={selectedEmployee.avatarUrl} alt={selectedEmployee.name} />
                     <AvatarFallback>{selectedEmployee.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
@@ -323,3 +323,5 @@ export default function EmployeesPage() {
     </>
   );
 }
+
+    
