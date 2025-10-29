@@ -48,6 +48,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -298,18 +299,18 @@ export default function EmployeesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <FormLabel>Role</FormLabel>
-                  <p>{selectedEmployee.role}</p>
+                  <Label>Role</Label>
+                  <p className="text-sm text-muted-foreground">{selectedEmployee.role}</p>
                 </div>
                 <div>
-                  <FormLabel>Onboarding</FormLabel>
+                  <Label>Onboarding</Label>
                    <Badge
                       variant={
                         selectedEmployee.onboardingStatus === "Completed"
                           ? "default"
                           : "secondary"
                       }
-                      className={selectedEmployee.onboardingStatus === "Completed" ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 block w-fit mt-1" : "block w-fit mt-1"}
+                      className={selectedEmployee.onboardingStatus === "Completed" ? "block w-fit mt-1 bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : "block w-fit mt-1"}
                     >
                       {selectedEmployee.onboardingStatus}
                     </Badge>
