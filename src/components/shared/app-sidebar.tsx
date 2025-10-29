@@ -62,19 +62,18 @@ export function AppSidebar() {
       <SidebarMenu className="flex-1">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton
-              asChild
-              isActive={pathname === item.href}
-              tooltip={{
-                children: item.label,
-                className: "bg-primary text-primary-foreground",
-              }}
-            >
-              <Link href={item.href}>
-                <item.icon />
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuButton>
+            <Link href={item.href}>
+                <SidebarMenuButton
+                isActive={pathname === item.href}
+                tooltip={{
+                    children: item.label,
+                    className: "bg-primary text-primary-foreground",
+                }}
+                >
+                    <item.icon />
+                    <span>{item.label}</span>
+                </SidebarMenuButton>
+            </Link>
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
