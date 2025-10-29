@@ -8,6 +8,7 @@ import { AppSidebar } from '@/components/shared/app-sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { usePathname } from 'next/navigation';
+import { AppHeader } from '@/components/shared/app-header';
 
 export default function RootLayout({
   children,
@@ -36,9 +37,10 @@ export default function RootLayout({
             <SidebarProvider>
                 <AppSidebar />
                 <SidebarInset>
-                  <div className="p-4 sm:p-6 lg:p-8">
+                  <AppHeader />
+                  <main className="p-4 sm:p-6 lg:p-8">
                     {children}
-                  </div>
+                  </main>
                 </SidebarInset>
             </SidebarProvider>
           )}

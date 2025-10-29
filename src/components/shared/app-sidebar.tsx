@@ -1,7 +1,7 @@
 
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from 'next/link';
 import {
   Sidebar,
@@ -9,11 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter,
-  SidebarSeparator,
-  SidebarGroup,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   LayoutDashboard,
   Users,
@@ -22,11 +18,8 @@ import {
   ClipboardList,
   ArrowRightLeft,
   IceCream2,
-  LogOut,
-  LogIn,
   AreaChart,
 } from "lucide-react";
-import { useAuth, useUser } from "@/firebase";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -40,20 +33,6 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user, isUserLoading } = useUser();
-  const auth = useAuth();
-  const router = useRouter();
-
-  const handleLogout = () => {
-    if (auth) {
-      auth.signOut();
-    }
-    router.push('/login');
-  };
-
-  const handleLogin = () => {
-    router.push('/login');
-  }
 
   return (
     <Sidebar>
@@ -84,58 +63,6 @@ export function AppSidebar() {
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
-      <SidebarSeparator />
-      <SidebarFooter>
-        {isUserLoading ? (
-          <SidebarGroup>
-            {/* You can add a skeleton loader here */}
-          </SidebarGroup>
-        ) : user ? (
-          <SidebarGroup>
-             <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton tooltip={{children: "User Profile"}}>
-                        <Link href="#">
-                            <Avatar className="h-7 w-7">
-                                <AvatarImage src={user.photoURL || undefined} alt="User" />
-                                <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
-
-                            </Avatar>
-                            <span className="truncate">{user.displayName || user.email}</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-        ) : null}
-        <SidebarMenu>
-          <SidebarMenuItem>
-            {user ? (
-              <SidebarMenuButton
-                onClick={handleLogout}
-                tooltip={{
-                  children: "Logout",
-                  className: "bg-primary text-primary-foreground",
-                }}
-              >
-                <LogOut />
-                <span>Logout</span>
-              </SidebarMenuButton>
-            ) : (
-                <SidebarMenuButton
-                    onClick={handleLogin}
-                    tooltip={{
-                    children: "Login",
-                    className: "bg-primary text-primary-foreground",
-                    }}
-                >
-                    <LogIn />
-                    <span>Login</span>
-                </SidebarMenuButton>
-            )}
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   );
 }
