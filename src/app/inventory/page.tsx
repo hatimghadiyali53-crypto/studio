@@ -30,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter as DialogFormFooter,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -58,6 +58,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { inventory as initialInventory } from "@/lib/data";
 import type { InventoryItem } from "@/lib/types";
 import { Plus, Minus, Wand2, Calculator, PlusCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   name: z.string().min(2, "Item name must be at least 2 characters."),
@@ -72,6 +73,10 @@ const ITEMS_PER_PAGE = 5;
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [stockDialogOpen, setStockDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [stockAction, setStockAction] = useState<"add" | "subtract" | null>(null);
+  const [stockQuantity, setStockQuantity] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = Math.ceil(inventory.length / ITEMS_PER_PAGE);
@@ -101,7 +106,34 @@ export default function InventoryPage() {
     form.reset();
     setAddDialogOpen(false);
   }
+
+  const handleStockActionClick = (item: InventoryItem, action: "add" | "subtract") => {
+    setSelectedItem(item);
+    setStockAction(action);
+    setStockQuantity(1);
+    setStockDialogOpen(true);
+  };
   
+  const handleConfirmStockChange = () => {
+    if (!selectedItem || !stockAction) return;
+
+    setInventory(currentInventory => 
+        currentInventory.map(item => {
+            if(item.id === selectedItem.id) {
+                const newStock = stockAction === 'add' 
+                    ? item.inStock + stockQuantity
+                    : Math.max(0, item.inStock - stockQuantity);
+                return { ...item, inStock: newStock };
+            }
+            return item;
+        })
+    );
+
+    setStockDialogOpen(false);
+    setSelectedItem(null);
+    setStockAction(null);
+  }
+
   const handlePreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
   };
@@ -231,9 +263,9 @@ export default function InventoryPage() {
                       )}
                     />
                 </div>
-                <DialogFormFooter>
+                <DialogFooter>
                   <Button type="submit">Save Item</Button>
-                </DialogFormFooter>
+                </DialogFooter>
               </form>
             </Form>
           </DialogContent>
@@ -292,6 +324,7 @@ export default function InventoryPage() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
+                          onClick={() => handleStockActionClick(item, 'subtract')}
                         >
                           <Minus className="h-4 w-4" />
                           <span className="sr-only">Record Usage</span>
@@ -300,6 +333,7 @@ export default function InventoryPage() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
+                          onClick={() => handleStockActionClick(item, 'add')}
                         >
                           <Plus className="h-4 w-4" />
                           <span className="sr-only">Add Stock</span>
@@ -426,6 +460,37 @@ export default function InventoryPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+                {stockAction === 'add' ? 'Add Stock' : 'Subtract Stock'} for {selectedItem?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Enter the quantity to {stockAction}. Current stock: {selectedItem?.inStock} {selectedItem?.unit}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="quantity" className="text-right">
+                Quantity
+              </Label>
+              <Input
+                id="quantity"
+                type="number"
+                value={stockQuantity}
+                onChange={(e) => setStockQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                className="col-span-3"
+                min="1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleConfirmStockChange}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
-}
+
+    
