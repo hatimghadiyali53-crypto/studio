@@ -2,7 +2,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -47,7 +47,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusCircle } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -62,11 +62,22 @@ const onboardingQuestions = [
     { id: "q4", label: "Handbook Acknowledged" },
 ]
 
+const ITEMS_PER_PAGE = 5;
+
 export default function EmployeesPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(employees.length / ITEMS_PER_PAGE);
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return employees.slice(startIndex, endIndex);
+  }, [employees, currentPage]);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -95,6 +106,14 @@ export default function EmployeesPage() {
     setSelectedEmployee(employee);
     setViewDialogOpen(true);
   }
+  
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
 
   return (
     <>
@@ -196,7 +215,7 @@ export default function EmployeesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employees.map((employee) => (
+              {paginatedEmployees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -235,6 +254,29 @@ export default function EmployeesPage() {
             </TableBody>
           </Table>
         </CardContent>
+        <CardFooter className="flex items-center justify-between pt-6">
+          <div className="text-sm text-muted-foreground">
+            Showing page {currentPage} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
       
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>

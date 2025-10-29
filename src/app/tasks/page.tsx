@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -44,7 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import { employees, tasks } from "@/lib/data";
+import { employees, tasks as initialTasks } from "@/lib/data";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -52,7 +53,7 @@ import { PlusCircle, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Employee, Task } from "@/lib/types";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
 const employeeMap = employees.reduce((acc, emp) => {
   acc[emp.id] = emp;
@@ -65,15 +66,53 @@ const formSchema = z.object({
     dueDate: z.date({ required_error: "A due date is required." }),
 });
 
+const ITEMS_PER_PAGE = 5;
+
 export default function TasksPage() {
     const [open, setOpen] = useState(false);
+    const [tasks, setTasks] = useState<Task[]>(initialTasks);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const totalPages = Math.ceil(tasks.length / ITEMS_PER_PAGE);
+    const paginatedTasks = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        return tasks.slice(startIndex, endIndex);
+    }, [tasks, currentPage]);
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
     });
 
     function onSubmit(values: z.infer<typeof formSchema>) {
-        console.log(values);
+        const newTask: Task = {
+            id: `task-${tasks.length + 1}`,
+            name: values.name,
+            assignedTo: values.assignedTo,
+            dueDate: format(values.dueDate, "yyyy-MM-dd"),
+            status: "Pending",
+        };
+        setTasks(currentTasks => [...currentTasks, newTask]);
+        form.reset();
         setOpen(false);
+    }
+    
+    const handlePreviousPage = () => {
+        setCurrentPage((prev) => Math.max(prev - 1, 1));
+    };
+
+    const handleNextPage = () => {
+        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+    };
+
+    const handleToggleStatus = (taskId: string) => {
+        setTasks(currentTasks => 
+            currentTasks.map(task => 
+                task.id === taskId 
+                ? { ...task, status: task.status === 'Pending' ? 'Completed' : 'Pending' }
+                : task
+            )
+        );
     }
 
   return (
@@ -187,7 +226,7 @@ export default function TasksPage() {
             </TableRow>
             </TableHeader>
             <TableBody>
-            {tasks.map((task: Task) => {
+            {paginatedTasks.map((task: Task) => {
                 const employee = employeeMap[task.assignedTo];
                 return (
                 <TableRow key={task.id}>
@@ -217,7 +256,9 @@ export default function TasksPage() {
                     </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                        {task.status === 'Pending' && <Button variant="outline" size="sm">Mark as Completed</Button>}
+                        <Button variant="outline" size="sm" onClick={() => handleToggleStatus(task.id)}>
+                            {task.status === 'Pending' ? 'Mark as Completed' : 'Mark as Pending'}
+                        </Button>
                     </TableCell>
                 </TableRow>
                 );
@@ -225,6 +266,29 @@ export default function TasksPage() {
             </TableBody>
         </Table>
         </CardContent>
+        <CardFooter className="flex items-center justify-between pt-6">
+            <div className="text-sm text-muted-foreground">
+                Showing page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+                <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                >
+                Previous
+                </Button>
+                <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                >
+                Next
+                </Button>
+            </div>
+        </CardFooter>
       </Card>
     </>
   );

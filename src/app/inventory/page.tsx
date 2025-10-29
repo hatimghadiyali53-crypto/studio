@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -29,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
+  DialogFooter as DialogFormFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -66,9 +67,19 @@ const formSchema = z.object({
   lowThreshold: z.coerce.number().min(0, "Threshold can't be negative."),
 });
 
+const ITEMS_PER_PAGE = 5;
+
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(inventory.length / ITEMS_PER_PAGE);
+  const paginatedInventory = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return inventory.slice(startIndex, endIndex);
+  }, [inventory, currentPage]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -90,6 +101,15 @@ export default function InventoryPage() {
     form.reset();
     setAddDialogOpen(false);
   }
+  
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
 
   return (
     <>
@@ -211,9 +231,9 @@ export default function InventoryPage() {
                       )}
                     />
                 </div>
-                <DialogFooter>
+                <DialogFormFooter>
                   <Button type="submit">Save Item</Button>
-                </DialogFooter>
+                </DialogFormFooter>
               </form>
             </Form>
           </DialogContent>
@@ -244,7 +264,7 @@ export default function InventoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventory.map((item) => (
+                  {paginatedInventory.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.category}</TableCell>
@@ -290,6 +310,29 @@ export default function InventoryPage() {
                 </TableBody>
               </Table>
             </CardContent>
+            <CardFooter className="flex items-center justify-between pt-6">
+                <div className="text-sm text-muted-foreground">
+                    Showing page {currentPage} of {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1}
+                    >
+                    Previous
+                    </Button>
+                    <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                    >
+                    Next
+                    </Button>
+                </div>
+            </CardFooter>
           </Card>
         </TabsContent>
         <TabsContent value="predict">
