@@ -41,7 +41,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import { employees } from "@/lib/data";
+import { employees as initialEmployees } from "@/lib/data";
+import type { Employee } from "@/lib/types";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -63,6 +64,8 @@ const onboardingQuestions = [
 
 export default function EmployeesPage() {
   const [open, setOpen] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -73,7 +76,16 @@ export default function EmployeesPage() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+    const newEmployee: Employee = {
+        id: `emp-${employees.length + 1}`,
+        name: values.name,
+        email: values.email,
+        role: values.role,
+        onboardingStatus: "Pending",
+        avatarUrl: `https://picsum.photos/seed/${employees.length + 1}/40/40`
+    };
+    setEmployees(currentEmployees => [...currentEmployees, newEmployee]);
+    form.reset();
     setOpen(false);
   }
 
