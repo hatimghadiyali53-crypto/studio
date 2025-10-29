@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useState } from "react";
 import { z } from "zod";
 import { useForm, useFormState } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { format, setHours, setMinutes } from "date-fns";
 import {
   CalendarIcon,
   Check,
@@ -47,13 +48,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { employees } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { getShiftSwapSuggestions } from "./actions";
 import {
   ShiftSwapOutput,
-  ShiftSwapSuggestion,
+  type ShiftSwapSuggestion,
 } from "@/ai/flows/shift-swap-suggestion";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -62,6 +64,7 @@ const formSchema = z.object({
     required_error: "Please select the requesting employee.",
   }),
   shiftDateTime: z.date({ required_error: "A shift date is required." }),
+  shiftTime: z.string({ required_error: "A shift time is required."}),
   reason: z.string().min(10, "Reason must be at least 10 characters long."),
 });
 
@@ -85,9 +88,14 @@ export default function ShiftSwapPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setSuggestions(null);
+
+    const [hours, minutes] = values.shiftTime.split(':').map(Number);
+    const combinedDateTime = setMinutes(setHours(values.shiftDateTime, hours), minutes);
+
     const result = await getShiftSwapSuggestions({
-      ...values,
-      shiftDateTime: values.shiftDateTime.toISOString(),
+      requestingEmployeeId: values.requestingEmployeeId,
+      shiftDateTime: combinedDateTime.toISOString(),
+      reason: values.reason,
     });
 
     if (result.success) {
@@ -156,47 +164,62 @@ export default function ShiftSwapPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="shiftDateTime"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Shift Date & Time</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date < new Date(new Date().setHours(0, 0, 0, 0))
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="shiftDateTime"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Shift Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={"outline"}
+                                  className={cn(
+                                    "w-full pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  {field.value ? (
+                                    format(field.value, "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) =>
+                                  date < new Date(new Date().setHours(0, 0, 0, 0))
+                                }
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name="shiftTime"
+                      render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Shift Time</FormLabel>
+                            <FormControl>
+                                <Input type="time" {...field} />
+                            </FormControl>
+                             <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
                 <FormField
                   control={form.control}
                   name="reason"
