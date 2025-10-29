@@ -32,9 +32,10 @@ import { useAuth, useUser } from "@/firebase/provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { IceCream2, Building } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formSchema = z.object({
-  companyCode: z.string().min(1, { message: "Company code is required." }),
+  companyCode: z.string().min(1, { message: "Please select a store location." }),
   email: z.string().email({ message: "Please enter a valid email." }),
   password: z
     .string()
@@ -116,18 +117,22 @@ export default function LoginPage() {
                 name="companyCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company Code</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Building className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          type="text"
-                          placeholder="Enter your store's code"
-                          className="pl-10"
-                          {...field}
-                        />
-                      </div>
-                    </FormControl>
+                    <FormLabel>Store Location</FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <div className="relative">
+                            <Building className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <SelectTrigger className="pl-10">
+                                <SelectValue placeholder="Select a store" />
+                            </SelectTrigger>
+                          </div>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Coomera">Coomera</SelectItem>
+                          <SelectItem value="Ipswich">Ipswich</SelectItem>
+                          <SelectItem value="Northlakes">Northlakes</SelectItem>
+                        </SelectContent>
+                      </Select>
                     <FormMessage />
                   </FormItem>
                 )}
