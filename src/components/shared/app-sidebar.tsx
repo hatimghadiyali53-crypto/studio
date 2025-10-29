@@ -26,6 +26,7 @@ import {
   LogIn,
 } from "lucide-react";
 import { useAuth, useUser } from "@/firebase";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
