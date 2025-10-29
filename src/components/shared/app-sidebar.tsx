@@ -62,19 +62,18 @@ export function AppSidebar() {
       <SidebarMenu className="flex-1">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} legacyBehavior passHref>
-              <SidebarMenuButton
-                as="a"
-                isActive={pathname === item.href}
-                tooltip={{
-                    children: item.label,
-                    className: "bg-primary text-primary-foreground",
-                }}
-                >
-                    <item.icon />
-                    <span>{item.label}</span>
-                </SidebarMenuButton>
-            </Link>
+            <SidebarMenuButton
+              as="a"
+              href={item.href}
+              isActive={pathname === item.href}
+              tooltip={{
+                  children: item.label,
+                  className: "bg-primary text-primary-foreground",
+              }}
+              >
+                  <item.icon />
+                  <span>{item.label}</span>
+              </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
@@ -116,16 +115,15 @@ export function AppSidebar() {
               </SidebarMenuButton>
             ) : (
               <SidebarMenuButton
-                asChild
+                as="a"
+                href="/login"
                 tooltip={{
                   children: "Login",
                   className: "bg-primary text-primary-foreground",
                 }}
               >
-                <Link href="/login">
-                  <LogIn />
-                  <span>Login</span>
-                </Link>
+                <LogIn />
+                <span>Login</span>
               </SidebarMenuButton>
             )}
           </SidebarMenuItem>
