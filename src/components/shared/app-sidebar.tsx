@@ -43,7 +43,9 @@ export function AppSidebar() {
   const router = useRouter();
 
   const handleLogout = () => {
-    auth.signOut();
+    if (auth) {
+      auth.signOut();
+    }
     router.push('/login');
   };
 
@@ -87,13 +89,13 @@ export function AppSidebar() {
              <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton tooltip={{children: "User Profile"}} asChild>
-                        <a href="#">
+                        <Link href="#">
                             <Avatar className="h-7 w-7">
                                 <AvatarImage src={user.photoURL || undefined} alt="User" />
                                 <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <span className="truncate">{user.displayName || user.email}</span>
-                        </a >
+                        </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
