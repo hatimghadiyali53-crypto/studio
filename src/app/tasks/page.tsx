@@ -249,8 +249,8 @@ export default function TasksPage() {
             <TableHeader>
             <TableRow>
                 <TableHead>Task</TableHead>
-                <TableHead>Assigned To</TableHead>
-                <TableHead>Category</TableHead>
+                <TableHead className="hidden sm:table-cell">Assigned To</TableHead>
+                <TableHead className="hidden md:table-cell">Category</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -261,8 +261,19 @@ export default function TasksPage() {
                 const employee = employeeMap[task.assignedTo];
                 return (
                 <TableRow key={task.id}>
-                    <TableCell className="font-medium">{task.name}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium">
+                      {task.name}
+                       {employee && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground sm:hidden mt-1">
+                          <Avatar className="h-5 w-5">
+                              <AvatarImage src={employee.avatarUrl} alt={employee.name} data-ai-hint="person smiling" />
+                              <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <span>{employee.name}</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
                     {employee ? (
                         <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
@@ -275,7 +286,7 @@ export default function TasksPage() {
                         <span className="text-muted-foreground">Unassigned</span>
                     )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <Badge variant="outline">{task.category}</Badge>
                     </TableCell>
                     <TableCell>{task.dueDate}</TableCell>

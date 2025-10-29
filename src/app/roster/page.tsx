@@ -93,7 +93,53 @@ export default function RosterPage() {
           Export
         </Button>
       </PageHeader>
-      <Card>
+      
+      {/* Mobile View - Cards */}
+      <div className="md:hidden space-y-4">
+        {roster.map(schedule => {
+            const employee = employeeMap[schedule.employeeId];
+            if (!employee) return null;
+            return (
+                <Card key={employee.id}>
+                    <CardContent className="p-4">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Avatar>
+                                <AvatarImage src={employee.avatarUrl} alt={employee.name} data-ai-hint="person smiling" />
+                                <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <div className="font-medium">{employee.name}</div>
+                                <div className="text-sm text-muted-foreground">{employee.role}</div>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                           {weekDays.map(day => (
+                                <div key={day} className="flex justify-between items-center">
+                                    <span className="font-medium text-sm">{day}</span>
+                                     {isEditing ? (
+                                        <Input
+                                            value={schedule.shifts[day] || ''}
+                                            onChange={(e) => handleShiftChange(schedule.employeeId, day, e.target.value)}
+                                            className="h-8 w-32"
+                                        />
+                                    ) : schedule.shifts[day] === 'OFF' || !schedule.shifts[day] ? (
+                                        <span className="text-muted-foreground text-sm">OFF</span>
+                                    ) : (
+                                        <div className="rounded-md bg-secondary px-2 py-1 text-center text-sm text-secondary-foreground">
+                                            {schedule.shifts[day]}
+                                        </div>
+                                    )}
+                                </div>
+                           ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )
+        })}
+      </div>
+
+      {/* Desktop View - Table */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
