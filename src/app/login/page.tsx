@@ -113,7 +113,7 @@ export default function LoginPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">
-            Welcome to ScoopSmart
+            Welcome to Paradise CRM
           </CardTitle>
           <CardDescription>
             Sign in or create an account to manage your Baskin Robbins store.
