@@ -1,6 +1,8 @@
+
 "use client";
 
 import { usePathname } from "next/navigation";
+import Link from 'next/link';
 import {
   Sidebar,
   SidebarHeader,
@@ -64,10 +66,10 @@ export function AppSidebar() {
                 className: "bg-primary text-primary-foreground",
               }}
             >
-              <a href={item.href}>
+              <Link href={item.href}>
                 <item.icon />
                 <span>{item.label}</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
@@ -116,10 +118,10 @@ export function AppSidebar() {
                   className: "bg-primary text-primary-foreground",
                 }}
               >
-                <a href="/login">
+                <Link href="/login">
                   <LogIn />
                   <span>Login</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             )}
           </SidebarMenuItem>
@@ -128,5 +130,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
