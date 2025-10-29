@@ -66,9 +66,8 @@ export function AppSidebar() {
       <SidebarMenu className="flex-1">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-             <Link href={item.href} passHref legacyBehavior>
+             <Link href={item.href} asChild>
                 <SidebarMenuButton
-                    as="a"
                     isActive={pathname === item.href}
                     tooltip={{
                     children: item.label,
@@ -97,6 +96,7 @@ export function AppSidebar() {
                             <Avatar className="h-7 w-7">
                                 <AvatarImage src={user.photoURL || undefined} alt="User" />
                                 <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+
                             </Avatar>
                             <span className="truncate">{user.displayName || user.email}</span>
                         </Link>
@@ -136,3 +136,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
