@@ -62,7 +62,7 @@ export function AppSidebar() {
       <SidebarMenu className="flex-1">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} passHref asChild>
+            <Link href={item.href}>
               <SidebarMenuButton
                 isActive={pathname === item.href}
                 tooltip={{
