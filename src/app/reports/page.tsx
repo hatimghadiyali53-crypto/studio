@@ -18,6 +18,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 import { inventory, tasks, employees } from "@/lib/data";
 
 const inventoryConsumptionData = inventory
@@ -70,6 +72,40 @@ const employeeTaskChartConfig = {
 
 
 export default function ReportsPage() {
+  const handleExport = (data: any[], fileName: string) => {
+    if (!data || data.length === 0) {
+      return;
+    }
+    // Remove the 'fill' property from the data before exporting
+    const dataToExport = data.map(({ fill, ...rest }) => rest);
+    
+    const headers = Object.keys(dataToExport[0]);
+    const csvRows = [headers.join(",")];
+
+    dataToExport.forEach(item => {
+      const row = headers.map(header => {
+        let value = item[header];
+        if (typeof value === 'string') {
+          value = `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      });
+      csvRows.push(row.join(","));
+    });
+
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${fileName}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+
   return (
     <>
       <PageHeader
@@ -78,11 +114,17 @@ export default function ReportsPage() {
       />
       <div className="grid gap-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Inventory Consumption</CardTitle>
-            <CardDescription>
-              Consumption of ice cream flavors in the last 30 days.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>Inventory Consumption</CardTitle>
+                <CardDescription>
+                Consumption of ice cream flavors in the last 30 days.
+                </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => handleExport(inventoryConsumptionData, "inventory-consumption")}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+            </Button>
           </CardHeader>
           <CardContent>
             <ChartContainer config={inventoryChartConfig} className="h-[300px] w-full">
@@ -108,11 +150,17 @@ export default function ReportsPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card>
-            <CardHeader>
-              <CardTitle>Task Completion Rate</CardTitle>
-              <CardDescription>
-                Overview of pending vs. completed tasks.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Task Completion Rate</CardTitle>
+                    <CardDescription>
+                        Overview of pending vs. completed tasks.
+                    </CardDescription>
+                </div>
+                 <Button variant="outline" size="sm" onClick={() => handleExport(taskStatusChartData, "task-completion-rate")}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                </Button>
             </CardHeader>
             <CardContent className="flex justify-center">
               <ChartContainer
@@ -144,11 +192,17 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader>
-              <CardTitle>Employee Task Distribution</CardTitle>
-              <CardDescription>
-                Number of tasks assigned to each employee.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Employee Task Distribution</CardTitle>
+                    <CardDescription>
+                        Number of tasks assigned to each employee.
+                    </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleExport(employeeTaskData, "employee-task-distribution")}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                </Button>
             </CardHeader>
             <CardContent>
                <ChartContainer config={employeeTaskChartConfig} className="h-[250px] w-full">
