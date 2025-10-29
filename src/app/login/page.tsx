@@ -31,9 +31,10 @@ import {
 import { useAuth, useUser } from "@/firebase/provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { IceCream2 } from "lucide-react";
+import { IceCream2, Building } from "lucide-react";
 
 const formSchema = z.object({
+  companyCode: z.string().min(1, { message: "Company code is required." }),
   email: z.string().email({ message: "Please enter a valid email." }),
   password: z
     .string()
@@ -54,6 +55,7 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      companyCode: "",
       email: "",
       password: "",
     },
@@ -74,14 +76,19 @@ export default function LoginPage() {
   }
 
   function onSignIn(values: z.infer<typeof formSchema>) {
+    // Here you would typically use the companyCode to select the correct Firebase project or data partition
+    console.log("Company Code:", values.companyCode);
     initiateEmailSignIn(auth, values.email, values.password);
   }
 
   function onSignUp(values: z.infer<typeof formSchema>) {
+    console.log("Company Code:", values.companyCode);
     initiateEmailSignUp(auth, values.email, values.password);
   }
 
   function onGoogleSignIn() {
+    // Google Sign-In would also need to be aware of the company code, which can be complex.
+    // For now, we'll keep it as is.
     initiateGoogleSignIn(auth);
   }
 
@@ -104,6 +111,27 @@ export default function LoginPage() {
         <CardContent>
           <Form {...form}>
             <form className="space-y-4">
+               <FormField
+                control={form.control}
+                name="companyCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company Code</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Building className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="Enter your store's code"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="email"
