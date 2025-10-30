@@ -163,7 +163,7 @@ export default function EmployeesPage() {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
-  const handleChecklistChange = async (employeeId: string, categoryId: string, itemId: string, completed: boolean) => {
+  const handleChecklistChange = (employeeId: string, categoryId: string, itemId: string, completed: boolean) => {
     if (!firestore || !selectedEmployee) return;
 
     const updatedChecklist = selectedEmployee.onboardingChecklist.map(category => {
@@ -181,6 +181,7 @@ export default function EmployeesPage() {
     const allCompleted = updatedChecklist.every(category => category.items.every(item => item.completed));
     const newStatus = allCompleted ? 'Completed' : 'Pending';
 
+    // Optimistically update the local state for a responsive UI
     const updatedEmployee = {
       ...selectedEmployee,
       onboardingChecklist: updatedChecklist,
@@ -454,3 +455,4 @@ export default function EmployeesPage() {
     </>
   );
 }
+
