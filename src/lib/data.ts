@@ -1,50 +1,16 @@
+// This file is no longer used for providing data to the application.
+// All data is now fetched from Firestore.
+// It is kept for reference or future seeding scripts.
+
 import type { Employee, Task, InventoryItem, RosterShift, AttendanceRecord } from './types';
 
 export const employees: Employee[] = [
   { id: 'emp-1', name: 'Alice', email: 'alice@paradise.scoop', role: 'Shift Lead', onboardingStatus: 'Completed', store: 'Coomera' },
   { id: 'emp-2', name: 'Bob', email: 'bob@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', store: 'Ipswich' },
   { id: 'emp-3', name: 'Charlie', email: 'charlie@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', store: 'Northlakes' },
-  { id: 'emp-4', name: 'Diana', email: 'diana@paradise.scoop', role: 'Manager', onboardingStatus: 'Completed', store: 'Coomera' },
-  { id: 'emp-5', name: 'Eve', email: 'eve@paradise.scoop', role: 'Scooper', onboardingStatus: 'Pending', store: 'Ipswich' },
-  { id: 'emp-6', name: 'Frank', email: 'frank@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', store: 'Northlakes' },
-  { id: 'emp-7', name: 'Hatim', email: 'hatim@yopmail.com', role: 'Manager', onboardingStatus: 'Completed', store: 'Coomera' },
 ];
 
-export const tasks: Task[] = [
-  { id: 'task-1', name: 'Clean counters & tables', assignedTo: 'emp-2', dueDate: '2024-08-01', status: 'Completed', category: 'Daily' },
-  { id: 'task-2', name: 'Wipe down freezer glass', assignedTo: 'emp-3', dueDate: '2024-08-01', status: 'Pending', category: 'Daily' },
-  { id: 'task-3', name: 'Restock napkin dispensers', assignedTo: 'emp-1', dueDate: '2024-08-01', status: 'Completed', category: 'Weekly' },
-  { id: 'task-4', name: 'Mop floor', assignedTo: 'emp-6', dueDate: '2024-08-02', status: 'Pending', category: 'Daily' },
-  { id: 'task-5', name: 'Check cone inventory', assignedTo: 'emp-1', dueDate: '2024-08-02', status: 'Pending', category: 'Weekly' },
-  { id: 'task-6', name: 'Organize take-home tubs', assignedTo: 'emp-2', dueDate: '2024-08-03', status: 'Completed', category: 'Monthly' },
-];
-
-export const inventory: InventoryItem[] = [
-  { id: 'inv-1', name: 'Vanilla Bean', category: 'Ice Cream', inStock: 8, unit: 'Tubs', lowThreshold: 10 },
-  { id: 'inv-2', name: 'Chocolate Fudge', category: 'Ice Cream', inStock: 5, unit: 'Tubs', lowThreshold: 10 },
-  { id: 'inv-3', name: 'Strawberry Bliss', category: 'Ice Cream', inStock: 9, unit: 'Tubs', lowThreshold: 10 },
-  { id: 'inv-4', name: 'Mint Chip', category: 'Ice Cream', inStock: 15, unit: 'Tubs', lowThreshold: 10 },
-  { id: 'inv-5', name: 'Cookie Dough', category: 'Ice Cream', inStock: 12, unit: 'Tubs', lowThreshold: 10 },
-  { id: 'inv-6', name: 'Rainbow Sprinkles', category: 'Toppings', inStock: 20, unit: 'Bags', lowThreshold: 5 },
-  { id: 'inv-7', name: 'Waffle Cones', category: 'Cones', inStock: 50, unit: 'Boxes', lowThreshold: 20 },
-  { id: 'inv-8', name: 'Napkins', category: 'Supplies', inStock: 100, unit: 'Units', lowThreshold: 50 },
-];
-
-export const roster: RosterShift[] = [
-    { employeeId: 'emp-1', shifts: { Monday: '9AM-5PM', Tuesday: '9AM-5PM', Wednesday: 'OFF', Thursday: '9AM-5PM', Friday: '9AM-5PM' } },
-    { employeeId: 'emp-2', shifts: { Monday: '12PM-8PM', Tuesday: 'OFF', Wednesday: '12PM-8PM', Thursday: '12PM-8PM', Friday: 'OFF' } },
-    { employeeId: 'emp-3', shifts: { Monday: 'OFF', Tuesday: '12PM-8PM', Wednesday: 'OFF', Thursday: 'OFF', Friday: '12PM-8PM' } },
-    { employeeId: 'emp-4', shifts: { Monday: '9AM-5PM', Tuesday: '9AM-5PM', Wednesday: '9AM-5PM', Thursday: '9AM-5PM', Friday: '9AM-5PM' } },
-    { employeeId: 'emp-5', shifts: { Monday: '9AM-1PM', Tuesday: '9AM-1PM', Wednesday: '9AM-1PM', Thursday: 'OFF', Friday: 'OFF' } },
-    { employeeId: 'emp-6', shifts: { Monday: 'OFF', Tuesday: '2PM-8PM', Wednesday: '2PM-8PM', Thursday: '2PM-8PM', Friday: '2PM-8PM' } },
-];
-
-export const attendance: AttendanceRecord[] = [
-    { id: 'att-1', employeeId: 'emp-1', date: '2024-07-29', clockInTime: '09:05', clockOutTime: '17:02', status: 'Late' },
-    { id: 'att-2', employeeId: 'emp-2', date: '2024-07-29', clockInTime: '12:00', clockOutTime: '20:05', status: 'Clocked Out' },
-    { id: 'att-3', employeeId: 'emp-3', date: '2024-07-29', clockInTime: '12:00', clockOutTime: null, status: 'Clocked In' },
-    { id: 'att-4', employeeId: 'emp-4', date: '2024-07-29', clockInTime: '08:58', clockOutTime: '17:00', status: 'Clocked Out' },
-    { id: 'att-5', employeeId: 'emp-6', date: '2024-07-29', clockInTime: '14:00', clockOutTime: '20:00', status: 'Clocked Out' },
-];
-
-    
+export const tasks: Task[] = [];
+export const inventory: InventoryItem[] = [];
+export const roster: RosterShift[] = [];
+export const attendance: AttendanceRecord[] = [];

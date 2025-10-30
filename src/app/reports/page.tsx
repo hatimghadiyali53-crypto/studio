@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell } from "recharts";
 import {
   ChartConfig,
@@ -20,63 +21,83 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { inventory, tasks, employees } from "@/lib/data";
-
-const inventoryConsumptionData = inventory
-  .filter(item => item.category === "Ice Cream")
-  .map(item => ({
-    name: item.name,
-    consumed: (20 - item.inStock) * 10, // Mock consumption
-    fill: `hsl(var(--chart-${Math.floor(Math.random() * 5) + 1}))`
-  }));
-
-const inventoryChartConfig = {
-  consumed: {
-    label: "Units Consumed",
-  },
-} satisfies ChartConfig;
-
-const taskStatusData = tasks.reduce((acc, task) => {
-    const status = task.status;
-    if (!acc[status]) {
-        acc[status] = { name: status, value: 0, fill: '' };
-    }
-    acc[status].value++;
-    return acc;
-}, {} as { [key: string]: { name: string; value: number, fill: string } });
-
-const taskStatusChartData = Object.values(taskStatusData).map((item, index) => ({
-    ...item,
-    fill: item.name === 'Completed' ? 'hsl(var(--chart-1))' : 'hsl(var(--chart-2))'
-}));
-
-
-const taskStatusChartConfig = {
-  tasks: {
-    label: "Tasks",
-  },
-} satisfies ChartConfig;
-
-
-const employeeTaskData = employees.map(emp => ({
-    name: emp.name,
-    tasks: tasks.filter(t => t.assignedTo === emp.id).length,
-    fill: `hsl(var(--chart-${Math.floor(Math.random() * 5) + 1}))`
-}));
-
-const employeeTaskChartConfig = {
-  tasks: {
-    label: "Assigned Tasks",
-  },
-} satisfies ChartConfig;
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import type { Employee, Task, InventoryItem } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function ReportsPage() {
+  const firestore = useFirestore();
+
+  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+  const tasksQuery = useMemoFirebase(() => collection(firestore, 'tasks'), [firestore]);
+  const inventoryQuery = useMemoFirebase(() => collection(firestore, 'inventoryItems'), [firestore]);
+
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
+  const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksQuery);
+  const { data: inventory, isLoading: inventoryLoading } = useCollection<InventoryItem>(inventoryQuery);
+
+  const inventoryConsumptionData = useMemo(() => {
+    if (!inventory) return [];
+    return inventory
+        .filter(item => item.category === "Ice Cream")
+        .map(item => ({
+            name: item.name,
+            consumed: Math.max(0, 20 - item.inStock) * 10, // Mock consumption
+            fill: `hsl(var(--chart-${(item.name.length % 5) + 1}))`
+        }));
+  }, [inventory]);
+
+  const taskStatusData = useMemo(() => {
+    if(!tasks) return [];
+    const statusCounts = tasks.reduce((acc, task) => {
+        const status = task.status;
+        if (!acc[status]) {
+            acc[status] = { name: status, value: 0, fill: '' };
+        }
+        acc[status].value++;
+        return acc;
+    }, {} as { [key: string]: { name: string; value: number, fill: string } });
+
+    return Object.values(statusCounts).map((item, index) => ({
+        ...item,
+        fill: item.name === 'Completed' ? 'hsl(var(--chart-1))' : 'hsl(var(--chart-2))'
+    }));
+  }, [tasks]);
+
+  const employeeTaskData = useMemo(() => {
+    if (!employees || !tasks) return [];
+    return employees.map(emp => ({
+        name: emp.name,
+        tasks: tasks.filter(t => t.assignedTo === emp.id).length,
+        fill: `hsl(var(--chart-${(emp.name.length % 5) + 1}))`
+    }));
+  }, [employees, tasks]);
+
+
+  const inventoryChartConfig = {
+    consumed: {
+      label: "Units Consumed",
+    },
+  } satisfies ChartConfig;
+
+  const taskStatusChartConfig = {
+    tasks: {
+      label: "Tasks",
+    },
+  } satisfies ChartConfig;
+
+  const employeeTaskChartConfig = {
+    tasks: {
+      label: "Assigned Tasks",
+    },
+  } satisfies ChartConfig;
+
   const handleExport = (data: any[], fileName: string) => {
     if (!data || data.length === 0) {
       return;
     }
-    // Remove the 'fill' property from the data before exporting
     const dataToExport = data.map(({ fill, ...rest }) => rest);
     
     const headers = Object.keys(dataToExport[0]);
@@ -127,24 +148,26 @@ export default function ReportsPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={inventoryChartConfig} className="h-[300px] w-full">
-              <BarChart accessibilityLayer data={inventoryConsumptionData}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  tickLine={false}
-                  tickMargin={10}
-                  axisLine={false}
-                  tickFormatter={(value) => value.slice(0, 3)}
-                />
-                <YAxis />
-                <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent indicator="dot" />}
-                />
-                <Bar dataKey="consumed" radius={8} />
-              </BarChart>
-            </ChartContainer>
+            {inventoryLoading ? <Skeleton className="h-[300px] w-full" /> : (
+                <ChartContainer config={inventoryChartConfig} className="h-[300px] w-full">
+                <BarChart accessibilityLayer data={inventoryConsumptionData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                    tickFormatter={(value) => value.slice(0, 3)}
+                    />
+                    <YAxis />
+                    <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dot" />}
+                    />
+                    <Bar dataKey="consumed" radius={8} />
+                </BarChart>
+                </ChartContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -157,38 +180,40 @@ export default function ReportsPage() {
                         Overview of pending vs. completed tasks.
                     </CardDescription>
                 </div>
-                 <Button variant="outline" size="sm" onClick={() => handleExport(taskStatusChartData, "task-completion-rate")}>
+                 <Button variant="outline" size="sm" onClick={() => handleExport(taskStatusData, "task-completion-rate")}>
                     <Download className="mr-2 h-4 w-4" />
                     Export
                 </Button>
             </CardHeader>
             <CardContent className="flex justify-center">
-              <ChartContainer
-                config={taskStatusChartConfig}
-                className="h-[250px] w-full"
-              >
-                <PieChart>
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
-                  />
-                  <Pie
-                    data={taskStatusChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={60}
-                    strokeWidth={5}
-                  >
-                    {taskStatusChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend
-                    content={<ChartLegendContent nameKey="name" />}
-                    className="-mt-4"
-                  />
-                </PieChart>
-              </ChartContainer>
+              {tasksLoading ? <Skeleton className="h-[250px] w-[250px] rounded-full" /> : (
+                <ChartContainer
+                    config={taskStatusChartConfig}
+                    className="h-[250px] w-full"
+                >
+                    <PieChart>
+                    <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Pie
+                        data={taskStatusData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        strokeWidth={5}
+                    >
+                        {taskStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                    </Pie>
+                    <ChartLegend
+                        content={<ChartLegendContent nameKey="name" />}
+                        className="-mt-4"
+                    />
+                    </PieChart>
+                </ChartContainer>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -205,18 +230,20 @@ export default function ReportsPage() {
                 </Button>
             </CardHeader>
             <CardContent>
-               <ChartContainer config={employeeTaskChartConfig} className="h-[250px] w-full">
-                 <BarChart accessibilityLayer data={employeeTaskData} layout="vertical">
-                    <CartesianGrid horizontal={false} />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
-                    <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent indicator="dot" />}
-                        />
-                    <Bar dataKey="tasks" radius={5} layout="vertical" />
-                 </BarChart>
-               </ChartContainer>
+                {(employeesLoading || tasksLoading) ? <Skeleton className="h-[250px] w-full" /> : (
+                    <ChartContainer config={employeeTaskChartConfig} className="h-[250px] w-full">
+                        <BarChart accessibilityLayer data={employeeTaskData} layout="vertical">
+                        <CartesianGrid horizontal={false} />
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent indicator="dot" />}
+                            />
+                        <Bar dataKey="tasks" radius={5} layout="vertical" />
+                        </BarChart>
+                    </ChartContainer>
+                )}
             </CardContent>
           </Card>
         </div>

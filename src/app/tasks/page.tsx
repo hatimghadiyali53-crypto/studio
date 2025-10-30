@@ -2,6 +2,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Table,
   TableBody,
@@ -45,7 +47,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import { employees, tasks as initialTasks } from "@/lib/data";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,11 +55,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Employee, Task } from "@/lib/types";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-
-const employeeMap = employees.reduce((acc, emp) => {
-  acc[emp.id] = emp;
-  return acc;
-}, {} as Record<string, Omit<Employee, 'avatarUrl'>>);
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
     name: z.string().min(3, "Task name is too short"),
@@ -71,11 +68,27 @@ const ITEMS_PER_PAGE = 5;
 
 export default function TasksPage() {
     const [open, setOpen] = useState(false);
-    const [tasks, setTasks] = useState<Task[]>(initialTasks);
     const [currentPage, setCurrentPage] = useState(1);
+    const firestore = useFirestore();
 
-    const totalPages = Math.ceil(tasks.length / ITEMS_PER_PAGE);
+    const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+    const tasksQuery = useMemoFirebase(() => collection(firestore, 'tasks'), [firestore]);
+
+    const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
+    const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksQuery);
+
+    const employeeMap = useMemo(() => {
+        if (!employees) return {};
+        return employees.reduce((acc, emp) => {
+          acc[emp.id] = emp;
+          return acc;
+        }, {} as Record<string, Employee>);
+    }, [employees]);
+
+
+    const totalPages = Math.ceil((tasks?.length ?? 0) / ITEMS_PER_PAGE);
     const paginatedTasks = useMemo(() => {
+        if (!tasks) return [];
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         const endIndex = startIndex + ITEMS_PER_PAGE;
         return tasks.slice(startIndex, endIndex);
@@ -88,18 +101,20 @@ export default function TasksPage() {
         }
     });
 
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        const newTask: Task = {
-            id: `task-${tasks.length + 1}`,
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        const newTask: Omit<Task, 'id' | 'status'> = {
             name: values.name,
             assignedTo: values.assignedTo,
             dueDate: format(values.dueDate, "yyyy-MM-dd"),
-            status: "Pending",
             category: values.category,
         };
-        setTasks(currentTasks => [...currentTasks, newTask]);
-        form.reset();
-        setOpen(false);
+        try {
+            await addDoc(collection(firestore, 'tasks'), { ...newTask, status: 'Pending'});
+            form.reset();
+            setOpen(false);
+        } catch (error) {
+            console.error("Error adding task: ", error);
+        }
     }
     
     const handlePreviousPage = () => {
@@ -110,14 +125,14 @@ export default function TasksPage() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleToggleStatus = (taskId: string) => {
-        setTasks(currentTasks => 
-            currentTasks.map(task => 
-                task.id === taskId 
-                ? { ...task, status: task.status === 'Pending' ? 'Completed' : 'Pending' }
-                : task
-            )
-        );
+    const handleToggleStatus = async (task: Task) => {
+        const taskRef = doc(firestore, 'tasks', task.id);
+        const newStatus = task.status === 'Pending' ? 'Completed' : 'Pending';
+        try {
+            await updateDoc(taskRef, { status: newStatus });
+        } catch (error) {
+            console.error("Error updating task status: ", error);
+        }
     }
 
   return (
@@ -163,7 +178,7 @@ export default function TasksPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {employees.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                              {employees?.map(emp => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -257,8 +272,19 @@ export default function TasksPage() {
             </TableRow>
             </TableHeader>
             <TableBody>
-            {paginatedTasks.map((task: Task) => {
+            {tasksLoading && Array.from({length: 5}).map((_, i) => (
+                <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-32" /></TableCell>
+                </TableRow>
+            ))}
+            {!tasksLoading && paginatedTasks.map((task) => {
                 const employee = employeeMap[task.assignedTo];
+                const dueDate = task.dueDate instanceof Date ? format(task.dueDate, "yyyy-MM-dd") : (typeof task.dueDate === 'string' ? task.dueDate : (task.dueDate as any).toDate().toLocaleDateString());
                 return (
                 <TableRow key={task.id}>
                     <TableCell className="font-medium">
@@ -287,7 +313,7 @@ export default function TasksPage() {
                     <TableCell className="hidden md:table-cell">
                       <Badge variant="outline">{task.category}</Badge>
                     </TableCell>
-                    <TableCell>{task.dueDate}</TableCell>
+                    <TableCell>{dueDate}</TableCell>
                     <TableCell>
                     <Badge
                         variant={
@@ -299,7 +325,7 @@ export default function TasksPage() {
                     </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleToggleStatus(task.id)}>
+                        <Button variant="outline" size="sm" onClick={() => handleToggleStatus(task)}>
                             {task.status === 'Pending' ? 'Mark as Completed' : 'Mark as Pending'}
                         </Button>
                     </TableCell>
@@ -336,5 +362,3 @@ export default function TasksPage() {
     </>
   );
 }
-
-    

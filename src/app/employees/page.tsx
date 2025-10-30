@@ -1,8 +1,9 @@
 
 "use client";
 
-import Image from "next/image";
 import { useState, useMemo } from "react";
+import { collection, addDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Table,
   TableBody,
@@ -42,13 +43,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
 import type { Employee } from "@/lib/types";
-import { employees as initialEmployees } from "@/lib/data";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -66,11 +67,14 @@ const onboardingQuestions = [
 const ITEMS_PER_PAGE = 5;
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const firestore = useFirestore();
+
+  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
 
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedEmployees = useMemo(() => {
@@ -90,17 +94,20 @@ export default function EmployeesPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    const newEmployee: Employee = {
-        id: `emp-${employees.length + 1}`,
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const newEmployee: Omit<Employee, 'id'> = {
         name: values.name,
         email: values.email,
         role: values.role,
         onboardingStatus: "Pending",
     };
-    setEmployees(current => [...current, newEmployee]);
-    form.reset();
-    setAddDialogOpen(false);
+    try {
+      await addDoc(collection(firestore, 'employees'), newEmployee);
+      form.reset();
+      setAddDialogOpen(false);
+    } catch (error) {
+      console.error("Error adding employee: ", error);
+    }
   }
 
   const handleViewClick = (employee: Employee) => {
@@ -216,7 +223,23 @@ export default function EmployeesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedEmployees.map((employee) => (
+                {employeesLoading && Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div>
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="mt-1 h-3 w-32" />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-16" /></TableCell>
+                  </TableRow>
+                ))}
+                {!employeesLoading && paginatedEmployees.map((employee) => (
                   <TableRow key={employee.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">

@@ -6,6 +6,8 @@ import { format } from "date-fns";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { collection, addDoc, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { PageHeader } from "@/components/shared/page-header";
 import {
   Card,
@@ -42,8 +44,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { employees, attendance as initialAttendance } from "@/lib/data";
-import type { AttendanceRecord, Employee } from "@/lib/types";
+import type { AttendanceRecord, Employee, RosterShift } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   employeeId: z.string({
@@ -51,23 +53,33 @@ const formSchema = z.object({
   }),
 });
 
-const employeeMap = employees.reduce((acc, emp) => {
-  acc[emp.id] = emp;
-  return acc;
-}, {} as Record<string, Omit<Employee, 'store'>>);
-
-
 const ITEMS_PER_PAGE = 5;
 
 export default function AttendancePage() {
-  const [attendanceLog, setAttendanceLog] = useState<AttendanceRecord[]>(initialAttendance);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
-
   const { toast } = useToast();
+  const firestore = useFirestore();
 
-  const totalPages = Math.ceil(attendanceLog.length / ITEMS_PER_PAGE);
+  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+  const attendanceQuery = useMemoFirebase(() => query(collection(firestore, 'attendance'), where("date", "==", format(new Date(), "yyyy-MM-dd"))), [firestore]);
+  const rosterQuery = useMemoFirebase(() => collection(firestore, 'roster'), [firestore]);
+
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
+  const { data: attendanceLog, isLoading: attendanceLoading } = useCollection<AttendanceRecord>(attendanceQuery);
+  const { data: roster, isLoading: rosterLoading } = useCollection<RosterShift>(rosterQuery);
+
+  const employeeMap = useMemo(() => {
+    if (!employees) return {};
+    return employees.reduce((acc, emp) => {
+        acc[emp.id] = emp;
+        return acc;
+    }, {} as Record<string, Employee>);
+  }, [employees]);
+
+  const totalPages = Math.ceil((attendanceLog?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedLog = useMemo(() => {
+    if (!attendanceLog) return [];
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return [...attendanceLog].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.clockInTime.localeCompare(a.clockInTime)).slice(startIndex, endIndex);
@@ -83,12 +95,12 @@ export default function AttendancePage() {
     return () => clearInterval(timer);
   }, []);
   
-  const handleClockIn = (values: z.infer<typeof formSchema>) => {
+  const handleClockIn = async (values: z.infer<typeof formSchema>) => {
     const employeeId = values.employeeId;
     const today = format(new Date(), "yyyy-MM-dd");
 
-    const existingEntry = attendanceLog.find(
-      (record) => record.employeeId === employeeId && record.date === today && record.status === 'Clocked In'
+    const existingEntry = attendanceLog?.find(
+      (record) => record.employeeId === employeeId && record.status === 'Clocked In'
     );
 
     if (existingEntry) {
@@ -101,7 +113,8 @@ export default function AttendancePage() {
     }
     
     const clockInTime = format(new Date(), "HH:mm");
-    const shiftStartTime = roster.find(r => r.employeeId === employeeId)?.shifts[format(new Date(), 'EEEE')]?.split('-')[0] || "09AM";
+    const employeeRoster = roster?.find(r => r.employeeId === employeeId);
+    const shiftStartTime = employeeRoster?.shifts[format(new Date(), 'EEEE')]?.split('-')[0] || "09AM";
     
     let shiftHour = parseInt(shiftStartTime.match(/\d+/)?.[0] || '9');
     if (shiftStartTime.includes('PM') && shiftHour !== 12) shiftHour += 12;
@@ -110,9 +123,7 @@ export default function AttendancePage() {
     
     const isLate = clockInHour > shiftHour || (clockInHour === shiftHour && clockInMinute > 5);
 
-
-    const newRecord: AttendanceRecord = {
-      id: `att-${attendanceLog.length + 1}`,
+    const newRecord: Omit<AttendanceRecord, 'id'> = {
       employeeId,
       date: today,
       clockInTime,
@@ -120,23 +131,27 @@ export default function AttendancePage() {
       status: isLate ? 'Late' : 'Clocked In',
     };
 
-    setAttendanceLog([newRecord, ...attendanceLog]);
-    toast({
-      title: "Clocked In!",
-      description: `${employeeMap[employeeId]?.name} clocked in at ${clockInTime}.`,
-    });
-    form.reset();
+    try {
+        await addDoc(collection(firestore, 'attendance'), newRecord);
+        toast({
+          title: "Clocked In!",
+          description: `${employeeMap[employeeId]?.name} clocked in at ${clockInTime}.`,
+        });
+        form.reset();
+    } catch(error) {
+        console.error("Error clocking in:", error);
+        toast({ variant: "destructive", title: "Clock In Failed" });
+    }
   };
 
-  const handleClockOut = (values: z.infer<typeof formSchema>) => {
+  const handleClockOut = async (values: z.infer<typeof formSchema>) => {
     const employeeId = values.employeeId;
-    const today = format(new Date(), "yyyy-MM-dd");
-
-    const recordIndex = attendanceLog.findIndex(
-      (record) => record.employeeId === employeeId && record.date === today && record.status !== 'Clocked Out'
+    
+    const recordToUpdate = attendanceLog?.find(
+      (record) => record.employeeId === employeeId && record.status !== 'Clocked Out'
     );
 
-    if (recordIndex === -1) {
+    if (!recordToUpdate) {
       toast({
         variant: "destructive",
         title: "Not Clocked In",
@@ -146,19 +161,22 @@ export default function AttendancePage() {
     }
 
     const clockOutTime = format(new Date(), "HH:mm");
-    const updatedLog = [...attendanceLog];
-    updatedLog[recordIndex] = {
-      ...updatedLog[recordIndex],
-      clockOutTime,
-      status: "Clocked Out",
-    };
-
-    setAttendanceLog(updatedLog);
-    toast({
-      title: "Clocked Out!",
-      description: `${employeeMap[employeeId]?.name} clocked out at ${clockOutTime}.`,
-    });
-    form.reset();
+    const recordRef = doc(firestore, 'attendance', recordToUpdate.id);
+    
+    try {
+        await updateDoc(recordRef, {
+            clockOutTime: clockOutTime,
+            status: 'Clocked Out'
+        });
+        toast({
+          title: "Clocked Out!",
+          description: `${employeeMap[employeeId]?.name} clocked out at ${clockOutTime}.`,
+        });
+        form.reset();
+    } catch (error) {
+        console.error("Error clocking out:", error);
+        toast({ variant: "destructive", title: "Clock Out Failed" });
+    }
   };
 
   const handlePreviousPage = () => {
@@ -204,12 +222,12 @@ export default function AttendancePage() {
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger disabled={employeesLoading}>
                               <SelectValue placeholder="Select your name" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {employees.map((emp) => (
+                            {employees?.map((emp) => (
                               <SelectItem key={emp.id} value={emp.id}>
                                 {emp.name}
                               </SelectItem>
@@ -248,7 +266,15 @@ export default function AttendancePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedLog.map((record) => {
+                  {(attendanceLoading || employeesLoading) && Array.from({length: 5}).map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><Skeleton className="h-10 w-48"/></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16"/></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16"/></TableCell>
+                        <TableCell><Skeleton className="h-6 w-24 rounded-full"/></TableCell>
+                    </TableRow>
+                  ))}
+                  {!attendanceLoading && !employeesLoading && paginatedLog.map((record) => {
                     const employee = employeeMap[record.employeeId];
                     if (!employee) return null;
                     return (
@@ -316,9 +342,3 @@ export default function AttendancePage() {
     </>
   );
 }
-// Mock roster data to check for lateness. In a real app this would come from your data source.
-const roster = [
-    { employeeId: 'emp-1', shifts: { 'Monday': '09AM-5PM' } },
-    { employeeId: 'emp-2', shifts: { 'Monday': '12PM-8PM' } },
-    { employeeId: 'emp-3', shifts: { 'Monday': '12PM-8PM' } },
-];

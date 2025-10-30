@@ -5,6 +5,8 @@ import { useState, useMemo } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { collection, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Table,
   TableBody,
@@ -55,10 +57,10 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
-import { inventory as initialInventory } from "@/lib/data";
 import type { InventoryItem } from "@/lib/types";
 import { Plus, Minus, Wand2, Calculator, PlusCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   name: z.string().min(2, "Item name must be at least 2 characters."),
@@ -71,7 +73,6 @@ const formSchema = z.object({
 const ITEMS_PER_PAGE = 5;
 
 export default function InventoryPage() {
-  const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -79,8 +80,13 @@ export default function InventoryPage() {
   const [stockQuantity, setStockQuantity] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const totalPages = Math.ceil(inventory.length / ITEMS_PER_PAGE);
+  const firestore = useFirestore();
+  const inventoryQuery = useMemoFirebase(() => collection(firestore, 'inventoryItems'), [firestore]);
+  const { data: inventory, isLoading: inventoryLoading } = useCollection<InventoryItem>(inventoryQuery);
+
+  const totalPages = Math.ceil((inventory?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedInventory = useMemo(() => {
+    if (!inventory) return [];
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return inventory.slice(startIndex, endIndex);
@@ -97,14 +103,17 @@ export default function InventoryPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    const newItem: InventoryItem = {
-      id: `inv-${inventory.length + 1}`,
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const newItem: Omit<InventoryItem, 'id'> = {
       ...values,
     };
-    setInventory((current) => [...current, newItem]);
-    form.reset();
-    setAddDialogOpen(false);
+    try {
+        await addDoc(collection(firestore, 'inventoryItems'), newItem);
+        form.reset();
+        setAddDialogOpen(false);
+    } catch(error) {
+        console.error("Error adding inventory item:", error);
+    }
   }
 
   const handleStockActionClick = (item: InventoryItem, action: "add" | "subtract") => {
@@ -114,20 +123,19 @@ export default function InventoryPage() {
     setStockDialogOpen(true);
   };
   
-  const handleConfirmStockChange = () => {
+  const handleConfirmStockChange = async () => {
     if (!selectedItem || !stockAction) return;
 
-    setInventory(currentInventory => 
-        currentInventory.map(item => {
-            if(item.id === selectedItem.id) {
-                const newStock = stockAction === 'add' 
-                    ? item.inStock + stockQuantity
-                    : Math.max(0, item.inStock - stockQuantity);
-                return { ...item, inStock: newStock };
-            }
-            return item;
-        })
-    );
+    const itemRef = doc(firestore, 'inventoryItems', selectedItem.id);
+    const changeAmount = stockAction === 'add' ? stockQuantity : -stockQuantity;
+    
+    try {
+        await updateDoc(itemRef, {
+            inStock: increment(changeAmount)
+        });
+    } catch (error) {
+        console.error("Error updating stock:", error);
+    }
 
     setStockDialogOpen(false);
     setSelectedItem(null);
@@ -296,7 +304,19 @@ export default function InventoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedInventory.map((item) => (
+                  {inventoryLoading && Array.from({length: 5}).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Skeleton className="h-8 w-8 inline-block" />
+                        <Skeleton className="h-8 w-8 inline-block" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!inventoryLoading && paginatedInventory.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.category}</TableCell>
@@ -492,5 +512,3 @@ export default function InventoryPage() {
       </Dialog>
     </>
   );
-
-    

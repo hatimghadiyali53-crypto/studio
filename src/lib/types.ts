@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export type Employee = {
   id: string;
   name: string;
@@ -11,7 +13,7 @@ export type Task = {
   id: string;
   name: string;
   assignedTo: string; // Employee ID
-  dueDate: string;
+  dueDate: string | Timestamp;
   status: 'Pending' | 'Completed';
   category: 'Daily' | 'Weekly' | 'Monthly' | 'One-Time';
 };
@@ -26,6 +28,7 @@ export type InventoryItem = {
 };
 
 export type RosterShift = {
+  id: string;
   employeeId: string;
   shifts: {
     [day: string]: string;

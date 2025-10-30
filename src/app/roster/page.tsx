@@ -1,7 +1,9 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { collection, doc, updateDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,28 +20,58 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { employees, roster as initialRoster } from "@/lib/data";
 import { Download, Pencil, Save } from "lucide-react";
 import type { Employee, RosterShift } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-const employeeMap = employees.reduce((acc, emp) => {
-  acc[emp.id] = emp;
-  return acc;
-}, {} as Record<string, Omit<Employee, 'avatarUrl'>>);
-
 export default function RosterPage() {
-  const [roster, setRoster] = useState<RosterShift[]>(initialRoster);
   const [isEditing, setIsEditing] = useState(false);
+  const firestore = useFirestore();
 
-  const handleEditToggle = () => {
+  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+  const rosterQuery = useMemoFirebase(() => collection(firestore, 'roster'), [firestore]);
+
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
+  const { data: roster, isLoading: rosterLoading } = useCollection<RosterShift>(rosterQuery);
+
+  // Local state to manage edits before saving to Firestore
+  const [localRoster, setLocalRoster] = useState<RosterShift[] | null>(null);
+
+  useState(() => {
+    if (roster) {
+      setLocalRoster(roster);
+    }
+  });
+
+  const employeeMap = useMemo(() => {
+    if (!employees) return {};
+    return employees.reduce((acc, emp) => {
+      acc[emp.id] = emp;
+      return acc;
+    }, {} as Record<string, Employee>);
+  }, [employees]);
+  
+  const handleEditToggle = async () => {
+    if (isEditing && localRoster) {
+        // Save changes to Firestore
+        const promises = localRoster.map(schedule => {
+            const docRef = doc(firestore, 'roster', schedule.id);
+            return updateDoc(docRef, { shifts: schedule.shifts });
+        });
+        await Promise.all(promises);
+    } else if (!isEditing && roster) {
+        // Enter edit mode, copy firestore data to local state
+        setLocalRoster(JSON.parse(JSON.stringify(roster)));
+    }
     setIsEditing(!isEditing);
   };
 
   const handleShiftChange = (employeeId: string, day: string, value: string) => {
-    setRoster(currentRoster =>
-      currentRoster.map(schedule => {
+    if (!localRoster) return;
+    setLocalRoster(currentRoster =>
+      currentRoster!.map(schedule => {
         if (schedule.employeeId === employeeId) {
           return {
             ...schedule,
@@ -55,6 +87,7 @@ export default function RosterPage() {
   };
 
   const handleExport = () => {
+    if(!roster) return;
     const headers = ["Employee", ...weekDays];
     const csvRows = [headers.join(",")];
 
@@ -80,6 +113,8 @@ export default function RosterPage() {
     link.click();
     document.body.removeChild(link);
   };
+  
+  const displayRoster = isEditing ? localRoster : roster;
 
   return (
     <>
@@ -96,7 +131,10 @@ export default function RosterPage() {
       
       {/* Mobile View - Cards */}
       <div className="md:hidden space-y-4">
-        {roster.map(schedule => {
+        {(rosterLoading || employeesLoading) && Array.from({length: 3}).map((_, i) => (
+             <Card key={i}><CardContent className="p-4"><Skeleton className="h-32 w-full" /></CardContent></Card>
+        ))}
+        {!rosterLoading && !employeesLoading && displayRoster?.map(schedule => {
             const employee = employeeMap[schedule.employeeId];
             if (!employee) return null;
             return (
@@ -150,7 +188,13 @@ export default function RosterPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {roster.map((schedule: RosterShift) => {
+              {(rosterLoading || employeesLoading) && Array.from({length: 5}).map((_, i) => (
+                <TableRow key={i}>
+                    <TableCell><Skeleton className="h-10 w-48" /></TableCell>
+                    {weekDays.map(day => <TableCell key={day}><Skeleton className="h-8 w-full" /></TableCell>)}
+                </TableRow>
+              ))}
+              {!rosterLoading && !employeesLoading && displayRoster?.map((schedule: RosterShift) => {
                 const employee = employeeMap[schedule.employeeId];
                 if (!employee) return null;
 
@@ -194,5 +238,3 @@ export default function RosterPage() {
     </>
   );
 }
-
-    

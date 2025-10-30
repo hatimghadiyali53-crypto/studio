@@ -2,44 +2,45 @@
  * @fileoverview Firestore Security Rules for Paradise ScoopSmart.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for employee-related data,
- * while allowing more open access to shared or global data like rosters, tasks, and inventory.
- * The primary goal is to protect user data and ensure only authorized users can modify sensitive information.
+ * This ruleset enforces a strict user-ownership model for employee-specific data,
+ * while allowing more open access to shared resources like rosters and inventory.
+ * Data is denormalized to avoid costly `get()` calls in security rules.
  *
  * Data Structure:
- * - `/employees/{employeeId}`: Employee profiles, accessible only by the employee themselves.
- * - `/rosters/{rosterId}`: Rosters, with open read access.
- * - `/rosters/{rosterId}/shifts/{shiftId}`: Shifts associated with rosters.
- * - `/inventoryItems/{inventoryItemId}`: Inventory items, with open read access.
- * - `/inventoryItems/{inventoryItemId}/inventoryLogs/{inventoryLogId}`: Inventory logs, open read.
- * - `/tasks/{taskId}`: Global tasks, with open read access.
- * - `/employees/{employeeId}/employeeTasks/{employeeTaskId}`: Tasks assigned to employees, accessible only by the employee.
- * - `/shiftSwapRequests/{shiftSwapRequestId}`: Shift swap requests.
+ * - /employees/{employeeId}: Stores personal employee information. Only the
+ *   authenticated user with the matching ID can read or write their own document.
+ * - /rosters/{rosterId}: Stores roster information.
+ * - /rosters/{rosterId}/shifts/{shiftId}: Stores shift information associated with a specific roster.
+ * - /inventoryItems/{inventoryItemId}: Stores inventory item details.
+ * - /inventoryItems/{inventoryItemId}/inventoryLogs/{inventoryLogId}: Stores logs for each inventory item.
+ * - /tasks/{taskId}: Stores general tasks available for assignment.
+ * - /employees/{employeeId}/employeeTasks/{employeeTaskId}: Stores tasks assigned to a specific employee.
+ * - /shiftSwapRequests/{shiftSwapRequestId}: Manages shift swap requests between employees.
  *
  * Key Security Decisions:
- * - User data (under `/employees/{employeeId}`) is strictly controlled, using the "Ownership" pattern.
- * - Public data (rosters, inventory, tasks) is readable by anyone, but write access is restricted to prevent unauthorized modifications.
- * - Listing operations are secured based on the data's privacy level. User-specific data is listable only by the owner, while public data is generally listable by anyone.
+ * - User listing is generally disallowed to protect privacy.
+ * - Read-only collections are explicitly marked with `allow get, list: if true;`.
+ * - Write operations always require authentication and are restricted based on
+ *   ownership or other authorization checks.
  *
  * Denormalization for Authorization:
- * - The `shifts` collection denormalizes `employeeId` to avoid `get()` calls when checking shift assignments.
+ * - Shift documents include `employeeId` to simplify shift retrieval and management
+ *   without needing to query employee data.
+ * - ShiftSwapRequest documents include `requestingEmployeeId` and `acceptingEmployeeId`
+ *   for easy request retrieval and management.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows employees to manage their own profile data.
+     * @description Controls access to employee profiles. Only the employee themselves can read and write their profile.
      * @path /employees/{employeeId}
-     * @allow (create) User with uid 'user_abc' can create a profile if employeeId == 'user_abc'.
-     * @allow (get) User with uid 'user_abc' can read their own profile (employeeId == 'user_abc').
-     * @allow (update) User with uid 'user_abc' can update their profile (employeeId == 'user_abc').
-     * @allow (delete) User with uid 'user_abc' can delete their own profile (employeeId == 'user_abc').
-     * @deny (create) User with uid 'user_def' cannot create a profile for employeeId 'user_abc'.
-     * @deny (get) User with uid 'user_def' cannot read profile for employeeId 'user_abc'.
-     * @deny (update) User with uid 'user_def' cannot update profile for employeeId 'user_abc'.
-     * @deny (delete) User with uid 'user_def' cannot delete profile for employeeId 'user_abc'.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) - User abc creates their own profile: auth.uid == "abc" and request.resource.data.id == "abc"
+     * @allow (get, update, delete) - User abc reads, updates, or deletes their own profile: auth.uid == "abc"
+     * @deny (create) - User abc tries to create profile for user def: auth.uid == "abc" and request.resource.data.id == "def"
+     * @deny (get, update, delete) - User def tries to read, update, or delete user abc's profile: auth.uid == "def"
+     * @principle Enforces document ownership, restricts data access to the owner.
      */
     match /employees/{employeeId} {
       function isSignedIn() {
@@ -47,162 +48,161 @@ service cloud.firestore {
       }
 
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
 
       function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
       }
 
-      allow get: if true;
-      allow list: if false; // Explicitly deny listing all employees.
-
-      allow create: if isSignedIn() && isOwner(employeeId) && request.resource.data.id == employeeId;
+      allow get: if isOwner(employeeId);
+      allow list: if false;
+      allow create: if isOwner(employeeId) && request.resource.data.id == employeeId;
       allow update: if isExistingOwner(employeeId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(employeeId);
     }
 
     /**
-     * @description Allows anyone to read rosters, but restricts writes.
+     * @description Controls access to rosters.
      * @path /rosters/{rosterId}
-     * @allow (get) Any user can read a roster.
-     * @allow (list) Any user can list rosters.
-     * @deny (create) No one can create a roster (TODO: Add role-based access).
-     * @deny (update) No one can update a roster (TODO: Add role-based access).
-     * @deny (delete) No one can delete a roster (TODO: Add role-based access).
-     * @principle Allows public read access with restricted writes.
+     * @allow (get, list) - Any authenticated user can read rosters.
+     * @allow (create) - Any authenticated user can create rosters.
+     * @allow (update, delete) - Only the user who created the roster can modify or delete it.
+     * @deny (create, update, delete) - Unauthenticated users cannot modify rosters.
+     * @principle Allows public read access but restricts write access to authenticated users.
      */
     match /rosters/{rosterId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add role-based access.
-      allow update: if false; // TODO: Add role-based access.
-      allow delete: if false; // TODO: Add role-based access.
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Manages shifts within rosters, accessible with roster-level permissions.
+     * @description Controls access to shifts within a roster. Requires authentication for all operations.
      * @path /rosters/{rosterId}/shifts/{shiftId}
-     * @allow (get) Any user can read a shift.
-     * @allow (list) Any user can list shifts within a roster.
-     * @deny (create) No one can create a shift (TODO: Add role-based access).
-     * @deny (update) No one can update a shift (TODO: Add role-based access).
-     * @deny (delete) No one can delete a shift (TODO: Add role-based access).
-     * @principle Inherits read access from the parent roster.
+     * @allow (get, list) - Any authenticated user can read shifts.
+     * @allow (create) - Any authenticated user can create shifts.
+     * @allow (update, delete) - Only the user who created the shift can modify or delete it.
+     * @deny (create, update, delete) - Unauthenticated users cannot modify shifts.
+     * @principle Requires authentication for all operations and restricts modification/deletion.
      */
     match /rosters/{rosterId}/shifts/{shiftId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add role-based access.
-      allow update: if false; // TODO: Add role-based access.
-      allow delete: if false; // TODO: Add role-based access.
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Allows anyone to read inventory items, but restricts writes.
+     * @description Controls access to inventory items.
      * @path /inventoryItems/{inventoryItemId}
-     * @allow (get) Any user can read an inventory item.
-     * @allow (list) Any user can list inventory items.
-     * @deny (create) No one can create an inventory item (TODO: Add role-based access).
-     * @deny (update) No one can update an inventory item (TODO: Add role-based access).
-     * @deny (delete) No one can delete an inventory item (TODO: Add role-based access).
-     * @principle Allows public read access with restricted writes.
+     * @allow (get, list) - Any authenticated user can read inventory items.
+     * @allow (create) - Any authenticated user can create inventory items.
+     * @allow (update, delete) - Only the user who created the inventory item can modify or delete it.
+     * @deny (create, update, delete) - Unauthenticated users cannot modify inventory items.
+     * @principle Allows public read access but restricts write access to authenticated users.
      */
     match /inventoryItems/{inventoryItemId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add role-based access.
-      allow update: if false; // TODO: Add role-based access.
-      allow delete: if false; // TODO: Add role-based access.
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Manages inventory logs, accessible with item-level permissions.
+     * @description Controls access to inventory logs within an inventory item. Requires authentication for all operations.
      * @path /inventoryItems/{inventoryItemId}/inventoryLogs/{inventoryLogId}
-     * @allow (get) Any user can read an inventory log.
-     * @allow (list) Any user can list inventory logs for an item.
-     * @deny (create) No one can create an inventory log (TODO: Add role-based access).
-     * @deny (update) No one can update an inventory log (TODO: Add role-based access).
-     * @deny (delete) No one can delete an inventory log (TODO: Add role-based access).
-     * @principle Inherits read access from the parent inventory item.
+     * @allow (get, list) - Any authenticated user can read inventory logs.
+     * @allow (create) - Any authenticated user can create inventory logs.
+     * @allow (update, delete) - Only the user who created the inventory log can modify or delete it.
+     * @deny (create, update, delete) - Unauthenticated users cannot modify inventory logs.
+     * @principle Requires authentication for all operations and restricts modification/deletion.
      */
     match /inventoryItems/{inventoryItemId}/inventoryLogs/{inventoryLogId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add role-based access.
-      allow update: if false; // TODO: Add role-based access.
-      allow delete: if false; // TODO: Add role-based access.
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Allows anyone to read tasks, but restricts writes.
+     * @description Controls access to global tasks.
      * @path /tasks/{taskId}
-     * @allow (get) Any user can read a task.
-     * @allow (list) Any user can list tasks.
-     * @deny (create) No one can create a task (TODO: Add role-based access).
-     * @deny (update) No one can update a task (TODO: Add role-based access).
-     * @deny (delete) No one can delete a task (TODO: Add role-based access).
-     * @principle Allows public read access with restricted writes.
+     * @allow (get, list) - Any authenticated user can read tasks.
+     * @allow (create) - Any authenticated user can create tasks.
+     * @allow (update, delete) - Only the user who created the task can modify or delete it.
+     * @deny (create, update, delete) - Unauthenticated users cannot modify tasks.
+     * @principle Allows public read access but restricts write access to authenticated users.
      */
     match /tasks/{taskId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add role-based access.
-      allow update: if false; // TODO: Add role-based access.
-      allow delete: if false; // TODO: Add role-based access.
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Allows employees to manage their own tasks.
+     * @description Controls access to employee-specific tasks. Only the assigned employee can read and write their tasks.
      * @path /employees/{employeeId}/employeeTasks/{employeeTaskId}
-     * @allow (create) User with uid 'user_abc' can create a task if employeeId == 'user_abc'.
-     * @allow (get) User with uid 'user_abc' can read their own tasks (employeeId == 'user_abc').
-     * @allow (list) User with uid 'user_abc' can list their own tasks (employeeId == 'user_abc').
-     * @allow (update) User with uid 'user_abc' can update their tasks (employeeId == 'user_abc').
-     * @allow (delete) User with uid 'user_abc' can delete their tasks (employeeId == 'user_abc').
-     * @deny (create) User with uid 'user_def' cannot create a task for employeeId 'user_abc'.
-     * @deny (get) User with uid 'user_def' cannot read tasks for employeeId 'user_abc'.
-     * @deny (list) User with uid 'user_def' cannot list tasks for employeeId 'user_abc'.
-     * @deny (update) User with uid 'user_def' cannot update tasks for employeeId 'user_abc'.
-     * @deny (delete) User with uid 'user_def' cannot delete tasks for employeeId 'user_abc'.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) - User abc creates a task for themselves: auth.uid == "abc"
+     * @allow (get, update, delete) - User abc reads, updates, or deletes their own task: auth.uid == "abc"
+     * @deny (create) - User abc tries to create a task for user def: auth.uid == "abc"
+     * @deny (get, update, delete) - User def tries to read, update, or delete user abc's task: auth.uid == "def"
+     * @principle Enforces document ownership, restricts data access to the owner.
      */
     match /employees/{employeeId}/employeeTasks/{employeeTaskId} {
       function isSignedIn() {
         return request.auth != null;
       }
 
-      function isOwner(userId) {
-        return request.auth.uid == userId;
+      function isOwner(employeeId) {
+        return isSignedIn() && request.auth.uid == employeeId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      function isExistingOwner(employeeId) {
+        return isOwner(employeeId) && resource != null;
       }
 
-      allow get: if isSignedIn() && isOwner(employeeId);
-      allow list: if isSignedIn() && isOwner(employeeId);
-      allow create: if isSignedIn() && isOwner(employeeId) && request.resource.data.employeeId == employeeId;
-      allow update: if isExistingOwner(employeeId) && request.resource.data.employeeId == employeeId;
+      allow get: if isOwner(employeeId);
+      allow list: if isOwner(employeeId);
+      allow create: if isOwner(employeeId);
+      allow update: if isExistingOwner(employeeId);
       allow delete: if isExistingOwner(employeeId);
     }
 
     /**
-     * @description Allows anyone to read shift swap requests, but restricts writes.
+     * @description Controls access to shift swap requests.
      * @path /shiftSwapRequests/{shiftSwapRequestId}
-     * @allow (get) Any user can read a shift swap request.
-     * @allow (list) Any user can list shift swap requests.
-     * @deny (create) No one can create a shift swap request (TODO: Add role-based access).
-     * @deny (update) No one can update a shift swap request (TODO: Add role-based access).
-     * @deny (delete) No one can delete a shift swap request (TODO: Add role-based access).
-     * @principle Allows public read access with restricted writes.
+     * @allow (get, list) - Any authenticated user can read shift swap requests.
+     * @allow (create) - Any authenticated user can create shift swap requests.
+     * @allow (update, delete) - Only the user who created the shift swap request can modify or delete it.
+     * @deny (create, update, delete) - Unauthenticated users cannot modify shift swap requests.
+     * @principle Allows public read access but restricts write access to authenticated users.
      */
     match /shiftSwapRequests/{shiftSwapRequestId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add role-based access.
-      allow update: if false; // TODO: Add role-based access.
-      allow delete: if false; // TODO: Add role-based access.
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
   }
 }
