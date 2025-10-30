@@ -151,6 +151,8 @@ export default function EmployeesPage() {
   const handleChecklistChange = (categoryId: string, itemId: string, completed: boolean) => {
     if (!firestore || !selectedEmployee) return;
 
+    let updatedEmployee: Employee | null = null;
+
     const updatedChecklist = selectedEmployee.onboardingChecklist.map(category => {
       if (category.id === categoryId) {
         return {
@@ -166,22 +168,21 @@ export default function EmployeesPage() {
     const allCompleted = updatedChecklist.every(category => category.items.every(item => item.completed));
     const newStatus = allCompleted ? 'Completed' : 'Pending';
 
-    // Optimistically update local state for immediate UI feedback
-    const updatedEmployee = {
+    updatedEmployee = {
       ...selectedEmployee,
       onboardingChecklist: updatedChecklist,
       onboardingStatus: newStatus,
-    } as Employee;
+    };
 
     setSelectedEmployee(updatedEmployee);
 
-    // Update the document in Firestore
     const employeeDocRef = doc(firestore, 'employees', selectedEmployee.id);
     updateDocumentNonBlocking(employeeDocRef, {
       onboardingChecklist: updatedChecklist,
       onboardingStatus: newStatus
     });
   };
+
 
   const handlePreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
