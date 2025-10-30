@@ -164,7 +164,7 @@ export default function LoginPage() {
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="hatimghadiyali53@gmail.com"
+                        placeholder="email@example.com"
                         {...field}
                       />
                     </FormControl>
