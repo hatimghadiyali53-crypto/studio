@@ -27,14 +27,16 @@ import {
   initiateEmailSignIn,
   initiateGoogleSignIn,
   initiateEmailSignUp,
+  initiatePasswordReset,
 } from "@/firebase/non-blocking-login";
 import { useAuth, useUser } from "@/firebase/provider";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Building } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { employees } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   companyCode: z.string().min(1, { message: "Please select a store location." }),
@@ -65,6 +67,8 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -90,128 +94,168 @@ export default function LoginPage() {
   }
 
   function onSignIn(values: z.infer<typeof formSchema>) {
-    const employee = employees.find(e => e.email === values.email);
-    if (!employee || employee.store !== values.companyCode) {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid store location for this email address.",
-      });
-      return;
-    }
     initiateEmailSignIn(auth, values.email, values.password);
   }
 
   function onSignUp(values: z.infer<typeof formSchema>) {
-    // For now, we'll allow signup and you can assign them a store later.
-    // In a real app, you'd likely have an admin-only flow for creating users.
     initiateEmailSignUp(auth, values.email, values.password);
   }
 
   function onGoogleSignIn() {
-    // Google Sign-In would also need a more complex flow to associate a store.
     initiateGoogleSignIn(auth);
   }
 
+  async function handlePasswordReset() {
+    if (!resetEmail) {
+      toast({
+        variant: "destructive",
+        title: "Email required",
+        description: "Please enter your email address.",
+      });
+      return;
+    }
+    await initiatePasswordReset(auth, resetEmail);
+    setResetDialogOpen(false);
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mb-4 flex justify-center">
-            <BaskinRobbinsLogo />
+    <>
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mb-4 flex justify-center">
+              <BaskinRobbinsLogo />
+            </div>
+            <CardTitle className="text-2xl font-bold">
+              Welcome to Paradise CRM
+            </CardTitle>
+            <CardDescription>
+              Sign in or create an account to manage your Baskin Robbins store.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form className="space-y-4">
+                 <FormField
+                  control={form.control}
+                  name="companyCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Store Location</FormLabel>
+                       <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <div className="relative">
+                              <Building className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                              <SelectTrigger className="pl-10">
+                                  <SelectValue placeholder="Select a store" />
+                              </SelectTrigger>
+                            </div>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Coomera">Coomera</SelectItem>
+                            <SelectItem value="Ipswich">Ipswich</SelectItem>
+                            <SelectItem value="Northlakes">Northlakes</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="email@example.com"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex justify-between">
+                        <FormLabel>Password</FormLabel>
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="h-auto p-0 text-xs"
+                          onClick={() => setResetDialogOpen(true)}
+                        >
+                          Forgot Password?
+                        </Button>
+                      </div>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex flex-col space-y-2">
+                   <Button type="button" onClick={form.handleSubmit(onSignIn)} className="w-full">
+                      Sign In
+                  </Button>
+                  <Button type="button" onClick={form.handleSubmit(onSignUp)} className="w-full" variant="secondary">
+                      Sign Up
+                  </Button>
+                </div>
+              </form>
+            </Form>
+            <div className="my-4 flex items-center">
+              <Separator className="flex-1" />
+              <span className="mx-4 text-xs text-muted-foreground">
+                OR CONTINUE WITH
+              </span>
+              <Separator className="flex-1" />
+            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={onGoogleSignIn}
+            >
+              <GoogleIcon />
+              Google
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Password</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter your email address and we will send you a link to reset your password.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reset-email">Email Address</Label>
+            <Input
+              id="reset-email"
+              type="email"
+              placeholder="email@example.com"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+            />
           </div>
-          <CardTitle className="text-2xl font-bold">
-            Welcome to Paradise CRM
-          </CardTitle>
-          <CardDescription>
-            Sign in or create an account to manage your Baskin Robbins store.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form className="space-y-4">
-               <FormField
-                control={form.control}
-                name="companyCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Store Location</FormLabel>
-                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <div className="relative">
-                            <Building className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <SelectTrigger className="pl-10">
-                                <SelectValue placeholder="Select a store" />
-                            </SelectTrigger>
-                          </div>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Coomera">Coomera</SelectItem>
-                          <SelectItem value="Ipswich">Ipswich</SelectItem>
-                          <SelectItem value="Northlakes">Northlakes</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="email@example.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex flex-col space-y-2">
-                 <Button type="button" onClick={form.handleSubmit(onSignIn)} className="w-full">
-                    Sign In
-                </Button>
-                <Button type="button" onClick={form.handleSubmit(onSignUp)} className="w-full" variant="secondary">
-                    Sign Up
-                </Button>
-              </div>
-            </form>
-          </Form>
-          <div className="my-4 flex items-center">
-            <Separator className="flex-1" />
-            <span className="mx-4 text-xs text-muted-foreground">
-              OR CONTINUE WITH
-            </span>
-            <Separator className="flex-1" />
-          </div>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={onGoogleSignIn}
-          >
-            <GoogleIcon />
-            Google
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePasswordReset}>Send Reset Link</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
+
+    
