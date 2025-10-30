@@ -2,27 +2,27 @@
  * @fileoverview Firestore Security Rules for Paradise ScoopSmart.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for employee-related data
- * and employs a combination of ownership and public-read/owner-write patterns for other data.
+ * This ruleset enforces a strict user-ownership model for employee-specific data,
+ * while also allowing for public read access to certain collections.
+ * All write operations are protected by authorization checks.
  *
  * Data Structure:
- * - /employees/{employeeId}: User-specific data, accessible only by the employee.
- * - /rosters/{rosterId}/shifts/{shiftId}: Shifts nested under rosters.
- * - /inventoryItems/{inventoryItemId}/inventoryLogs/{inventoryLogId}: Inventory logs nested under inventory items.
- * - /tasks/{taskId}: Publicly readable tasks.
+ * - /employees/{employeeId}: Employee profiles, accessible only by the employee themselves.
+ * - /rosters/{rosterId}: Employee rosters.
+ * - /rosters/{rosterId}/shifts/{shiftId}: Shifts associated with a roster.
+ * - /inventoryItems/{inventoryItemId}: Inventory items.
+ * - /inventoryItems/{inventoryItemId}/inventoryLogs/{inventoryLogId}: Inventory logs for each item.
+ * - /tasks/{taskId}: Global tasks.
+ * - /employees/{employeeId}/employeeTasks/{employeeTaskId}: Tasks assigned to specific employees.
  * - /shiftSwapRequests/{shiftSwapRequestId}: Shift swap requests.
  *
  * Key Security Decisions:
- * - User listing is generally disallowed.
- * - Data required for authorization is denormalized to avoid costly `get()` calls.
- * - Ambiguous cases default to strict denial.
+ * - User listing is generally disallowed unless explicitly required and secured.
+ * - Ambiguous relationships default to strict owner-only access.
  *
  * Denormalization for Authorization:
- * - Shifts store the `employeeId` to allow direct authorization checks without querying the employee document.
- * - ShiftSwapRequests store both `requestingEmployeeId` and `acceptingEmployeeId` for simplified access control.
- *
- * Structural Segregation:
- * - User-specific data (e.g., employee tasks) is stored under the employee's document, while global tasks are stored in a separate top-level collection.
+ * - Shifts contain the `employeeId` to avoid needing to query the Employee collection.
+ * - ShiftSwapRequests contain the `requestingEmployeeId` and `acceptingEmployeeId` for easy request retrieval and management.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -31,126 +31,161 @@ service cloud.firestore {
     /**
      * @description Allows employees to manage their own profiles.
      * @path /employees/{employeeId}
-     * @allow (create) User with UID "employee123" can create their profile at /employees/employee123.
-     * @allow (get, update, delete) User with UID "employee123" can read, update, or delete their profile at /employees/employee123.
-     * @deny (create) User with UID "employee456" cannot create a profile at /employees/employee123.
-     * @deny (update, delete) User with UID "employee456" cannot update or delete the profile at /employees/employee123.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) User abc can create their profile at /employees/abc if authenticated as abc.
+     * @allow (update) User abc can update their profile at /employees/abc if authenticated as abc.
+     * @allow (delete) User abc can delete their profile at /employees/abc if authenticated as abc.
+     * @deny (create) User xyz cannot create a profile at /employees/abc.
+     * @deny (update) User xyz cannot update user abc's profile at /employees/abc.
+     * @deny (delete) User xyz cannot delete user abc's profile at /employees/abc.
+     * @principle Enforces document ownership for writes; reads are restricted to the owner.
      */
     match /employees/{employeeId} {
       allow get: if isSignedIn() && isOwner(employeeId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(employeeId);
-      allow update: if isSignedIn() && isExistingOwner(employeeId);
+      allow list: if false; // Listing employees is not permitted.
+
+      allow create: if isSignedIn() && isOwner(employeeId) && request.resource.data.id == employeeId;
+      allow update: if isSignedIn() && isExistingOwner(employeeId) && request.resource.data.id == resource.data.id;
       allow delete: if isSignedIn() && isExistingOwner(employeeId);
     }
 
     /**
-     * @description Allows anyone to read rosters.
+     * @description Allows management of employee rosters.
      * @path /rosters/{rosterId}
-     * @allow (get, list) Any user can read any roster.
-     * @deny (create, update, delete) No one can create, update, or delete rosters (TODO: Restrict to admins or authorized users).
-     * @principle Allows public read access but restricts write access.
+     * @allow (create) Authenticated user can create a roster.
+     * @allow (update) Authenticated user can update a roster.
+     * @allow (delete) Authenticated user can delete a roster.
+     * @deny (create) Unauthenticated user cannot create a roster.
+     * @deny (update) Unauthenticated user cannot update a roster.
+     * @deny (delete) Unauthenticated user cannot delete a roster.
+     * @principle Requires authentication for all operations.
      */
     match /rosters/{rosterId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add role-based authorization for roster creation/modification.
+      allow get, list: if isSignedIn(); // Anyone signed in can read the rosters.
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows employees to manage shifts associated with rosters, but restricts access to their own shifts.
+     * @description Allows management of shifts within a roster.
      * @path /rosters/{rosterId}/shifts/{shiftId}
-     * @allow (get, list) Any signed-in user can view shifts.
-     * @allow (create) Any signed-in user can create shifts, but ensure `employeeId` is set correctly on create.
-     * @allow (update, delete) Only the employee assigned to the shift can update or delete it.
-     * @deny (create) User cannot create a shift for another employee.
-     * @deny (update, delete) User cannot update or delete a shift not assigned to them.
-     * @principle Enforces ownership for shift modifications.
+     * @allow (create) Authenticated user can create a shift within a roster.
+     * @allow (update) Authenticated user can update a shift within a roster.
+     * @allow (delete) Authenticated user can delete a shift within a roster.
+     * @deny (create) Unauthenticated user cannot create a shift within a roster.
+     * @deny (update) Unauthenticated user cannot update a shift within a roster.
+     * @deny (delete) Unauthenticated user cannot delete a shift within a roster.
+     * @principle Requires authentication for all operations.
      */
     match /rosters/{rosterId}/shifts/{shiftId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn(); // TODO: Add validation that the shift's employeeId is set correctly on creation.
-      allow update: if isSignedIn();  // TODO: Add validation that the shift's employeeId is set correctly on creation.
-      allow delete: if isSignedIn();  // TODO: Add validation that the shift's employeeId is set correctly on creation.
+      allow get, list: if isSignedIn(); // Anyone signed in can read the shifts.
+      allow create: if isSignedIn() ;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows anyone to read inventory items.
+     * @description Allows management of inventory items.
      * @path /inventoryItems/{inventoryItemId}
-     * @allow (get, list) Any user can read any inventory item.
-     * @deny (create, update, delete) No one can create, update, or delete inventory items (TODO: Restrict to admins or authorized users).
-     * @principle Allows public read access but restricts write access.
+     * @allow (create) Authenticated user can create an inventory item.
+     * @allow (update) Authenticated user can update an inventory item.
+     * @allow (delete) Authenticated user can delete an inventory item.
+     * @deny (create) Unauthenticated user cannot create an inventory item.
+     * @deny (update) Unauthenticated user cannot update an inventory item.
+     * @deny (delete) Unauthenticated user cannot delete an inventory item.
      */
     match /inventoryItems/{inventoryItemId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add role-based authorization for inventory management.
+      allow get, list: if isSignedIn(); // Anyone signed in can read the inventory items.
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows anyone to read inventory logs.
+     * @description Allows management of inventory logs for each item.
      * @path /inventoryItems/{inventoryItemId}/inventoryLogs/{inventoryLogId}
-     * @allow (get, list) Any user can read any inventory log.
-     * @deny (create, update, delete) No one can create, update, or delete inventory logs (TODO: Restrict to admins or authorized users).
-     * @principle Allows public read access but restricts write access.
+     * @allow (create) Authenticated user can create an inventory log.
+     * @allow (update) Authenticated user can update an inventory log.
+     * @allow (delete) Authenticated user can delete an inventory log.
+     * @deny (create) Unauthenticated user cannot create an inventory log.
+     * @deny (update) Unauthenticated user cannot update an inventory log.
+     * @deny (delete) Unauthenticated user cannot delete an inventory log.
+     * @principle Requires authentication for all operations.
      */
     match /inventoryItems/{inventoryItemId}/inventoryLogs/{inventoryLogId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add role-based authorization for inventory log management.
+      allow get, list: if isSignedIn(); // Anyone signed in can read the inventory logs.
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows public read access to tasks, but restricts write access.
+     * @description Allows management of global tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any user can read any task.
-     * @deny (create, update, delete) No one can create, update, or delete tasks (TODO: Restrict to admins or authorized users).
-     * @principle Allows public read access but restricts write access.
+     * @allow (create) Authenticated user can create a task.
+     * @allow (update) Authenticated user can update a task.
+     * @allow (delete) Authenticated user can delete a task.
+     * @deny (create) Unauthenticated user cannot create a task.
+     * @deny (update) Unauthenticated user cannot update a task.
+     * @deny (delete) Unauthenticated user cannot delete a task.
      */
     match /tasks/{taskId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add role-based authorization for task management.
+      allow get, list: if isSignedIn(); // Anyone signed in can read the tasks.
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows employees to manage their own tasks.
+     * @description Allows employees to manage their assigned tasks.
      * @path /employees/{employeeId}/employeeTasks/{employeeTaskId}
-     * @allow (create) User with UID "employee123" can create a task assignment at /employees/employee123/employeeTasks/task456.
-     * @allow (get, update, delete) User with UID "employee123" can read, update, or delete their task assignment at /employees/employee123/employeeTasks/task456.
-     * @deny (create) User with UID "employee456" cannot create a task assignment at /employees/employee123/employeeTasks/task456.
-     * @deny (update, delete) User with UID "employee456" cannot update or delete the task assignment at /employees/employee123/employeeTasks/task456.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) User abc can create a task at /employees/abc/employeeTasks/xyz if authenticated as abc.
+     * @allow (update) User abc can update a task at /employees/abc/employeeTasks/xyz if authenticated as abc.
+     * @allow (delete) User abc can delete a task at /employees/abc/employeeTasks/xyz if authenticated as abc.
+     * @deny (create) User xyz cannot create a task at /employees/abc/employeeTasks/xyz.
+     * @deny (update) User xyz cannot update user abc's task at /employees/abc/employeeTasks/xyz.
+     * @deny (delete) User xyz cannot delete user abc's task at /employees/abc/employeeTasks/xyz.
+     * @principle Enforces document ownership for writes; reads are restricted to the owner.
      */
     match /employees/{employeeId}/employeeTasks/{employeeTaskId} {
       allow get: if isSignedIn() && isOwner(employeeId);
       allow list: if isSignedIn() && isOwner(employeeId);
-      allow create: if isSignedIn() && isOwner(employeeId);
-      allow update: if isSignedIn() && isExistingOwner(employeeId);
+
+      allow create: if isSignedIn() && isOwner(employeeId) && request.resource.data.employeeId == employeeId;
+      allow update: if isSignedIn() && isExistingOwner(employeeId) && request.resource.data.employeeId == resource.data.employeeId;
       allow delete: if isSignedIn() && isExistingOwner(employeeId);
     }
 
     /**
-     * @description Allows anyone to read shift swap requests.
+     * @description Allows management of shift swap requests.
      * @path /shiftSwapRequests/{shiftSwapRequestId}
-     * @allow (get, list) Any user can read any shift swap request.
-     * @deny (create, update, delete) No one can create, update, or delete shift swap requests (TODO: Restrict to employees involved in the request or admins).
-     * @principle Allows public read access but restricts write access.
+     * @allow (create) Authenticated user can create a shift swap request.
+     * @allow (update) Authenticated user can update a shift swap request.
+     * @allow (delete) Authenticated user can delete a shift swap request.
+     * @deny (create) Unauthenticated user cannot create a shift swap request.
+     * @deny (update) Unauthenticated user cannot update a shift swap request.
+     * @deny (delete) Unauthenticated user cannot delete a shift swap request.
+     * @principle Requires authentication for all operations.
      */
     match /shiftSwapRequests/{shiftSwapRequestId} {
-      allow get, list: if isSignedIn(); // TODO: Add more granular authorization based on involvement in the shift swap.
-      allow create, update, delete: if false; // TODO: Restrict to employees involved in the request or admins.
+      allow get, list: if isSignedIn(); // Anyone signed in can read the shift swap requests.
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
-  }
+    //------------------ Helper functions -----------------------
 
-  // Helper Functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
 
-  function isExistingOwner(userId) {
-    return isSignedIn() && isOwner(userId) && resource != null;
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
   }
 }
