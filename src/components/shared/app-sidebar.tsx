@@ -13,10 +13,8 @@ import {
 import {
   LayoutDashboard,
   Users,
-  CalendarDays,
   Warehouse,
   ClipboardList,
-  ArrowRightLeft,
   AreaChart,
   CalendarCheck,
 } from "lucide-react";
@@ -24,11 +22,9 @@ import {
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/employees", label: "Employees", icon: Users },
-  { href: "/roster", label: "Roster", icon: CalendarDays },
   { href: "/inventory", label: "Inventory", icon: Warehouse },
   { href: "/tasks", label: "Tasks", icon: ClipboardList },
   { href: "/attendance", label: "Attendance", icon: CalendarCheck },
-  { href: "/shift-swap", label: "Shift Swap", icon: ArrowRightLeft },
   { href: "/reports", label: "Reports", icon: AreaChart },
 ];
 

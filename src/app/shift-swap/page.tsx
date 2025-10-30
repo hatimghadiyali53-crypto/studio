@@ -1,283 +1,40 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
-import { z } from "zod";
-import { useForm, useFormState } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { format, setHours, setMinutes } from "date-fns";
-import {
-  CalendarIcon,
-  Check,
-  CircleDashed,
-  Loader2,
-  Send,
-  Sparkles,
-  User,
-  Construction,
-} from "lucide-react";
-
 import { PageHeader } from "@/components/shared/page-header";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
-import { getShiftSwapSuggestions } from "./actions";
-import {
-  ShiftSwapOutput,
-  type ShiftSwapSuggestion,
-} from "@/ai/flows/shift-swap-suggestion";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from 'firebase/firestore';
-import type { Employee } from "@/lib/types";
-
-const formSchema = z.object({
-  requestingEmployeeId: z.string({
-    required_error: "Please select the requesting employee.",
-  }),
-  shiftDateTime: z.date({ required_error: "A shift date is required." }),
-  shiftTime: z.string({ required_error: "A shift time is required."}),
-  reason: z.string().min(10, "Reason must be at least 10 characters long."),
-});
-
-const procedureItems = [
-    { id: 'proc-1', label: 'Inform Shift Lead of the approved swap.'},
-    { id: 'proc-2', label: 'Verify take-home tub weight with covering employee.'},
-    { id: 'proc-3', label: 'Ensure cash drawer is balanced and signed off.'},
-]
+import { Construction } from "lucide-react";
 
 export default function ShiftSwapPage() {
-  const [suggestions, setSuggestions] = useState<ShiftSwapOutput | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedSuggestion, setSelectedSuggestion] = useState<ShiftSwapSuggestion | null>(null);
-
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const employeesQuery = useMemoFirebase(() => firestore && user ? collection(firestore, 'employees') : null, [firestore, user]);
-  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
-
-  const { toast } = useToast();
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-  });
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
-    setSuggestions(null);
-
-    const [hours, minutes] = values.shiftTime.split(':').map(Number);
-    const combinedDateTime = setMinutes(setHours(values.shiftDateTime, hours), minutes);
-
-    const result = await getShiftSwapSuggestions({
-      requestingEmployeeId: values.requestingEmployeeId,
-      shiftDateTime: combinedDateTime.toISOString(),
-      reason: values.reason,
-    });
-
-    if (result.success) {
-      setSuggestions(result.data);
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: result.error,
-      });
-    }
-    setIsLoading(false);
-  }
-  
-  const handleConfirmSwap = () => {
-    toast({
-        title: "Swap Confirmed!",
-        description: `${selectedSuggestion?.name} will now cover the shift.`,
-    });
-    setSelectedSuggestion(null);
-    setSuggestions(null);
-    form.reset();
-  }
-
   return (
     <>
       <PageHeader
         title="Shift Swap"
         description="Request a shift swap and get AI-powered suggestions for replacements."
       />
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Request a Swap</CardTitle>
-            <CardDescription>
-              Fill out the form to find a suitable replacement for your shift.
-            </CardDescription>
-          </CardHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="requestingEmployeeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Requesting Employee</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        disabled={employeesLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select an employee" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {employees?.map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                              {emp.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="shiftDateTime"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Shift Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "PPP")
-                                  ) : (
-                                    <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                  date < new Date(new Date().setHours(0, 0, 0, 0))
-                                }
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="shiftTime"
-                      render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Shift Time</FormLabel>
-                            <FormControl>
-                                <Input type="time" {...field} />
-                            </FormControl>
-                             <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="reason"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reason for Swap</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="e.g., Family emergency, doctor's appointment..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" disabled={true}>
-                  <Send className="mr-2 h-4 w-4" />
-                  Find Suggestions
-                </Button>
-              </CardFooter>
-            </form>
-          </Form>
-        </Card>
-
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="text-primary" /> AI Suggestions
-            </CardTitle>
-            <CardDescription>
-              Suitable candidates based on availability and qualifications.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col items-center justify-center text-center">
-            <Construction className="w-16 h-16 text-muted-foreground" />
-            <div className="text-center mt-4">
-                <h3 className="text-lg font-semibold">Feature Coming Soon!</h3>
-                <p className="text-muted-foreground">
-                    Our AI-powered shift swap suggestion is under development.
-                </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>AI-Powered Shift Swap</CardTitle>
+          <CardDescription>
+            This feature is currently being built.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center space-y-4 min-h-[400px]">
+          <Construction className="w-16 h-16 text-muted-foreground" />
+          <div className="text-center">
+            <h3 className="text-lg font-semibold">Feature Coming Soon!</h3>
+            <p className="text-muted-foreground">
+              Our AI-powered shift swap suggestion tool is under development.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </>
   );
 }
-
-    
