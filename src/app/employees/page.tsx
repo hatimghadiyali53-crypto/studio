@@ -4,10 +4,6 @@
 import Image from "next/image";
 import { useState, useMemo } from "react";
 import {
-  collection,
-  doc,
-} from "firebase/firestore";
-import {
   Table,
   TableBody,
   TableCell,
@@ -45,15 +41,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import { addDocumentNonBlocking, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import type { Employee } from "@/lib/types";
+import { employees as initialEmployees } from "@/lib/data";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -71,14 +66,11 @@ const onboardingQuestions = [
 const ITEMS_PER_PAGE = 5;
 
 export default function EmployeesPage() {
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const firestore = useFirestore();
-
-  const employeesCollection = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
-  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
 
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedEmployees = useMemo(() => {
@@ -99,13 +91,14 @@ export default function EmployeesPage() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    const newEmployee: Omit<Employee, 'id'> = {
+    const newEmployee: Employee = {
+        id: `emp-${employees.length + 1}`,
         name: values.name,
         email: values.email,
         role: values.role,
         onboardingStatus: "Pending",
     };
-    addDocumentNonBlocking(employeesCollection, newEmployee);
+    setEmployees(current => [...current, newEmployee]);
     form.reset();
     setAddDialogOpen(false);
   }
@@ -213,13 +206,6 @@ export default function EmployeesPage() {
       </PageHeader>
       <Card>
         <CardContent className="p-0">
-           {employeesLoading ? (
-             <div className="p-4">
-              <Skeleton className="h-10 w-full mb-4" />
-              <Skeleton className="h-10 w-full mb-4" />
-              <Skeleton className="h-10 w-full" />
-             </div>
-           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -267,7 +253,6 @@ export default function EmployeesPage() {
                 ))}
               </TableBody>
             </Table>
-           )}
         </CardContent>
         <CardFooter className="flex items-center justify-between pt-6">
           <div className="text-sm text-muted-foreground">
@@ -336,5 +321,3 @@ export default function EmployeesPage() {
     </>
   );
 }
-
-    
