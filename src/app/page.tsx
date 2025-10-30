@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import {
   Card,
   CardContent,
@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import type { Employee, Task, InventoryItem } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { collection } from 'firebase/firestore';
+import { employees, tasks, inventory } from '@/lib/data';
 
 const recentActivities = [
   {
@@ -59,22 +59,16 @@ const recentActivities = [
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
-  const firestore = useFirestore();
-
-  const employeesRef = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
-  const tasksRef = useMemoFirebase(() => collection(firestore, 'tasks'), [firestore]);
-  const inventoryRef = useMemoFirebase(() => collection(firestore, 'inventoryItems'), [firestore]);
-
-  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesRef);
-  const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksRef);
-  const { data: inventory, isLoading: inventoryLoading } = useCollection<InventoryItem>(inventoryRef);
-
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
+
+  const employeesLoading = false;
+  const tasksLoading = false;
+  const inventoryLoading = false;
 
   const kpiData = useMemo(() => {
     const totalEmployees = employees?.length ?? 0;
@@ -220,5 +214,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
