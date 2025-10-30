@@ -4,6 +4,10 @@
 import Image from "next/image";
 import { useState, useMemo } from "react";
 import {
+  collection,
+  doc,
+} from "firebase/firestore";
+import {
   Table,
   TableBody,
   TableCell,
@@ -41,7 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import { employees as initialEmployees } from "@/lib/data";
+import { addDocumentNonBlocking, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import type { Employee } from "@/lib/types";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -49,6 +53,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -69,11 +74,15 @@ export default function EmployeesPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [currentPage, setCurrentPage] = useState(1);
+  const firestore = useFirestore();
 
-  const totalPages = Math.ceil(employees.length / ITEMS_PER_PAGE);
+  const employeesCollection = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
+
+  const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedEmployees = useMemo(() => {
+    if (!employees) return [];
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return employees.slice(startIndex, endIndex);
@@ -90,14 +99,13 @@ export default function EmployeesPage() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    const newEmployee: Employee = {
-        id: `emp-${employees.length + 1}`,
+    const newEmployee: Omit<Employee, 'id'> = {
         name: values.name,
         email: values.email,
         role: values.role,
         onboardingStatus: "Pending",
     };
-    setEmployees(currentEmployees => [...currentEmployees, newEmployee]);
+    addDocumentNonBlocking(employeesCollection, newEmployee);
     form.reset();
     setAddDialogOpen(false);
   }
@@ -205,53 +213,61 @@ export default function EmployeesPage() {
       </PageHeader>
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Onboarding Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedEmployees.map((employee) => (
-                <TableRow key={employee.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{employee.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {employee.email}
+           {employeesLoading ? (
+             <div className="p-4">
+              <Skeleton className="h-10 w-full mb-4" />
+              <Skeleton className="h-10 w-full mb-4" />
+              <Skeleton className="h-10 w-full" />
+             </div>
+           ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Onboarding Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedEmployees.map((employee) => (
+                  <TableRow key={employee.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{employee.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {employee.email}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{employee.role}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        employee.onboardingStatus === "Completed"
-                          ? "default"
-                          : "secondary"
-                      }
-                      className={employee.onboardingStatus === "Completed" ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : ""}
-                    >
-                      {employee.onboardingStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => handleViewClick(employee)}>
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                    <TableCell>{employee.role}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          employee.onboardingStatus === "Completed"
+                            ? "default"
+                            : "secondary"
+                        }
+                        className={employee.onboardingStatus === "Completed" ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : ""}
+                      >
+                        {employee.onboardingStatus}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleViewClick(employee)}>
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+           )}
         </CardContent>
         <CardFooter className="flex items-center justify-between pt-6">
           <div className="text-sm text-muted-foreground">

@@ -46,3 +46,5 @@ export const attendance: AttendanceRecord[] = [
     { id: 'att-4', employeeId: 'emp-4', date: '2024-07-29', clockInTime: '08:58', clockOutTime: '17:00', status: 'Clocked Out' },
     { id: 'att-5', employeeId: 'emp-6', date: '2024-07-29', clockInTime: '14:00', clockOutTime: '20:00', status: 'Clocked Out' },
 ];
+
+    
