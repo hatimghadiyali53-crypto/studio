@@ -1,4 +1,11 @@
+
 import { Timestamp } from 'firebase/firestore';
+
+export type OnboardingChecklistItem = {
+  id: string;
+  label: string;
+  completed: boolean;
+};
 
 export type Employee = {
   id: string;
@@ -7,6 +14,7 @@ export type Employee = {
   role: 'Scooper' | 'Shift Lead' | 'Manager';
   onboardingStatus: 'Pending' | 'Completed';
   store?: 'Coomera' | 'Ipswich' | 'Northlakes';
+  onboardingChecklist: OnboardingChecklistItem[];
 };
 
 export type Task = {
@@ -43,3 +51,5 @@ export type AttendanceRecord = {
   clockOutTime: string | null;
   status: 'Clocked In' | 'Clocked Out' | 'Late';
 };
+
+    

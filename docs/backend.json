@@ -27,13 +27,26 @@
         "store": {
             "type": "string",
             "enum": ["Coomera", "Ipswich", "Northlakes"]
+        },
+        "onboardingChecklist": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string" },
+                    "label": { "type": "string" },
+                    "completed": { "type": "boolean" }
+                },
+                "required": ["id", "label", "completed"]
+            }
         }
       },
       "required": [
         "name",
         "email",
         "role",
-        "onboardingStatus"
+        "onboardingStatus",
+        "onboardingChecklist"
       ]
     },
     "Task": {
@@ -165,3 +178,5 @@
     }
   }
 }
+
+    

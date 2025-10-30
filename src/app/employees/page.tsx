@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import type { Employee } from "@/lib/types";
+import type { Employee, OnboardingChecklistItem } from "@/lib/types";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,8 +48,8 @@ import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
-import { collection } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useUser, updateDocumentNonBlocking } from "@/firebase";
+import { collection, doc } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -59,11 +59,11 @@ const formSchema = z.object({
   store: z.enum(["Coomera", "Ipswich", "Northlakes"]),
 });
 
-const onboardingQuestions = [
-    { id: "q1", label: "Food Handler's Permit" },
-    { id: "q2", label: "W-4 Form" },
-    { id: "q3", label: "Uniform Agreement" },
-    { id: "q4", label: "Handbook Acknowledged" },
+const onboardingQuestions: Omit<OnboardingChecklistItem, 'completed'>[] = [
+    { id: "food-handler-permit", label: "Food Handler's Permit" },
+    { id: "w4-form", label: "W-4 Form" },
+    { id: "uniform-agreement", label: "Uniform Agreement" },
+    { id: "handbook-acknowledged", label: "Handbook Acknowledged" },
 ]
 
 const ITEMS_PER_PAGE = 5;
@@ -74,8 +74,9 @@ export default function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   
+  const { user } = useUser();
   const firestore = useFirestore();
-  const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, 'employees') : null, [firestore]);
+  const employeesCollection = useMemoFirebase(() => firestore && user ? collection(firestore, 'employees') : null, [firestore, user]);
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
 
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
@@ -104,7 +105,8 @@ export default function EmployeesPage() {
         email: values.email,
         role: values.role,
         store: values.store,
-        onboardingStatus: "Pending",
+        onboardingStatus: "Pending" as const,
+        onboardingChecklist: onboardingQuestions.map(q => ({ ...q, completed: false })),
     };
     addDocumentNonBlocking(employeesCollection, newEmployee);
     form.reset();
@@ -122,6 +124,30 @@ export default function EmployeesPage() {
 
   const handleNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const handleChecklistChange = async (employeeId: string, itemId: string, completed: boolean) => {
+    if (!firestore || !selectedEmployee) return;
+
+    const updatedChecklist = selectedEmployee.onboardingChecklist.map(item =>
+        item.id === itemId ? { ...item, completed } : item
+    );
+    
+    const allCompleted = updatedChecklist.every(item => item.completed);
+    const newStatus = allCompleted ? 'Completed' : 'Pending';
+
+    const updatedEmployee = {
+      ...selectedEmployee,
+      onboardingChecklist: updatedChecklist,
+      onboardingStatus: newStatus,
+    };
+    setSelectedEmployee(updatedEmployee);
+    
+    const employeeDocRef = doc(firestore, 'employees', employeeId);
+    updateDocumentNonBlocking(employeeDocRef, { 
+      onboardingChecklist: updatedChecklist,
+      onboardingStatus: newStatus
+    });
   };
 
   return (
@@ -215,19 +241,6 @@ export default function EmployeesPage() {
                     )}
                   />
                 </div>
-                <FormItem>
-                    <FormLabel>Onboarding Checklist</FormLabel>
-                    <div className="space-y-2 rounded-md border p-4">
-                        {onboardingQuestions.map(item => (
-                            <div key={item.id} className="flex items-center space-x-2">
-                                <Checkbox id={item.id} />
-                                <label htmlFor={item.id} className="text-sm font-medium leading-none">
-                                    {item.label}
-                                </label>
-                            </div>
-                        ))}
-                    </div>
-                </FormItem>
                 <DialogFooter>
                   <Button type="submit">Save Employee</Button>
                 </DialogFooter>
@@ -378,11 +391,29 @@ export default function EmployeesPage() {
                     </Badge>
                 </div>
               </div>
+               <div>
+                  <Label>Onboarding Checklist</Label>
+                  <div className="space-y-2 rounded-md border p-4 mt-1">
+                      {selectedEmployee.onboardingChecklist?.map(item => (
+                          <div key={item.id} className="flex items-center space-x-2">
+                              <Checkbox 
+                                id={`${selectedEmployee.id}-${item.id}`} 
+                                checked={item.completed}
+                                onCheckedChange={(checked) => handleChecklistChange(selectedEmployee.id, item.id, !!checked)}
+                              />
+                              <label htmlFor={`${selectedEmployee.id}-${item.id}`} className="text-sm font-medium leading-none">
+                                  {item.label}
+                              </label>
+                          </div>
+                      ))}
+                  </div>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
     </>
   );
+}
 
     
