@@ -39,7 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import type { Employee, OnboardingCategory } from "@/lib/types";
+import type { Employee, OnboardingCategory, RosterShift } from "@/lib/types";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -100,16 +100,17 @@ export default function EmployeesPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const employeesCollection = useMemoFirebase(() => firestore && user ? collection(firestore, 'employees') : null, [firestore, user]);
+  const rosterCollection = useMemoFirebase(() => firestore && user ? collection(firestore, 'roster') : null, [firestore, user]);
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
   
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-
+  
   const paginatedEmployees = useMemo(() => {
     if (!employees) return [];
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
     return [...employees].sort((a, b) => a.name.localeCompare(b.name)).slice(startIndex, endIndex);
-  }, [employees, startIndex, endIndex]);
+  }, [employees, currentPage]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -122,19 +123,37 @@ export default function EmployeesPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!employeesCollection) return;
+    if (!employeesCollection || !rosterCollection) return;
 
     const fullChecklist: OnboardingCategory[] = trainingPlan.map(category => ({
       ...category,
       items: (trainingItems[category.id] || []).map(item => ({ ...item, completed: false }))
     }));
 
-    const newEmployee = {
+    const newEmployeeData = {
       ...values,
       onboardingStatus: "Pending" as const,
       onboardingChecklist: fullChecklist,
     };
-    addDocumentNonBlocking(employeesCollection, newEmployee);
+    
+    // Add the new employee and get the new document reference
+    const newEmployeeRef = await addDocumentNonBlocking(employeesCollection, newEmployeeData);
+
+    if (newEmployeeRef) {
+        // Create a corresponding roster entry for the new employee
+        const newRosterEntry: Omit<RosterShift, 'id'> = {
+            employeeId: newEmployeeRef.id,
+            shifts: {
+                Monday: "OFF",
+                Tuesday: "OFF",
+                Wednesday: "OFF",
+                Thursday: "OFF",
+                Friday: "OFF"
+            }
+        };
+        addDocumentNonBlocking(rosterCollection, newRosterEntry);
+    }
+    
     form.reset();
     setAddDialogOpen(false);
   }
@@ -255,6 +274,7 @@ export default function EmployeesPage() {
                 <TableHead>Role</TableHead>
                 <TableHead>Store</TableHead>
                 <TableHead>Onboarding Status</TableHead>
+                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -272,6 +292,7 @@ export default function EmployeesPage() {
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-8 w-16" /></TableCell>
                 </TableRow>
               ))}
               {!employeesLoading && paginatedEmployees?.map((employee) => (
@@ -303,11 +324,16 @@ export default function EmployeesPage() {
                       {employee.onboardingStatus}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="outline" size="sm">
+                        View
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {!employeesLoading && employees?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No employees found.
                   </TableCell>
                 </TableRow>
@@ -318,7 +344,7 @@ export default function EmployeesPage() {
         {employees && employees.length > 0 && totalPages > 1 && (
           <CardFooter className="flex items-center justify-between pt-6">
             <div className="text-sm text-muted-foreground">
-              Showing {startIndex + 1} - {Math.min(endIndex, employees.length)} of {employees.length} employees
+              Showing {paginatedEmployees.length > 0 ? ((currentPage - 1) * ITEMS_PER_PAGE) + 1 : 0} - {Math.min(currentPage * ITEMS_PER_PAGE, employees.length)} of {employees.length} employees
             </div>
             <div className="flex items-center gap-2">
               <Button

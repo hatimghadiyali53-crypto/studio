@@ -57,3 +57,5 @@ export type AttendanceRecord = {
   clockOutTime: string | null;
   status: 'Clocked In' | 'Clocked Out' | 'Late';
 };
+
+    
