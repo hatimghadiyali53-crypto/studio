@@ -181,7 +181,6 @@ export default function EmployeesPage() {
     const allCompleted = updatedChecklist.every(category => category.items.every(item => item.completed));
     const newStatus = allCompleted ? 'Completed' : 'Pending';
 
-    // Optimistically update the local state for a responsive UI
     const updatedEmployee = {
       ...selectedEmployee,
       onboardingChecklist: updatedChecklist,
@@ -455,4 +454,3 @@ export default function EmployeesPage() {
     </>
   );
 }
-
