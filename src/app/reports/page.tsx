@@ -21,18 +21,19 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Employee, Task, InventoryItem } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function ReportsPage() {
+  const { user } = useUser();
   const firestore = useFirestore();
 
-  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
-  const tasksQuery = useMemoFirebase(() => collection(firestore, 'tasks'), [firestore]);
-  const inventoryQuery = useMemoFirebase(() => collection(firestore, 'inventoryItems'), [firestore]);
+  const employeesQuery = useMemoFirebase(() => user ? collection(firestore, 'employees'): null, [user, firestore]);
+  const tasksQuery = useMemoFirebase(() => user ? collection(firestore, 'tasks') : null, [user, firestore]);
+  const inventoryQuery = useMemoFirebase(() => user ? collection(firestore, 'inventoryItems') : null, [user, firestore]);
 
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
   const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksQuery);
@@ -42,10 +43,10 @@ export default function ReportsPage() {
     if (!inventory) return [];
     return inventory
         .filter(item => item.category === "Ice Cream")
-        .map(item => ({
+        .map((item, index) => ({
             name: item.name,
-            consumed: Math.max(0, 20 - item.inStock) * 10, // Mock consumption
-            fill: `hsl(var(--chart-${(item.name.length % 5) + 1}))`
+            consumed: Math.max(0, (item.lowThreshold * 2) - item.inStock), // Mock consumption based on starting stock vs current
+            fill: `hsl(var(--chart-${(index % 5) + 1}))`
         }));
   }, [inventory]);
 
@@ -60,7 +61,7 @@ export default function ReportsPage() {
         return acc;
     }, {} as { [key: string]: { name: string; value: number, fill: string } });
 
-    return Object.values(statusCounts).map((item, index) => ({
+    return Object.values(statusCounts).map((item) => ({
         ...item,
         fill: item.name === 'Completed' ? 'hsl(var(--chart-1))' : 'hsl(var(--chart-2))'
     }));
@@ -68,10 +69,26 @@ export default function ReportsPage() {
 
   const employeeTaskData = useMemo(() => {
     if (!employees || !tasks) return [];
-    return employees.map(emp => ({
-        name: emp.name,
-        tasks: tasks.filter(t => t.assignedTo === emp.id).length,
-        fill: `hsl(var(--chart-${(emp.name.length % 5) + 1}))`
+    const employeeMap = employees.reduce((acc, emp) => {
+        acc[emp.id] = emp.name;
+        return acc;
+    }, {} as Record<string, string>);
+    
+    const tasksPerEmployee = tasks.reduce((acc, task) => {
+        const employeeName = employeeMap[task.assignedTo];
+        if (employeeName) {
+            if (!acc[employeeName]) {
+                acc[employeeName] = 0;
+            }
+            acc[employeeName]++;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(tasksPerEmployee).map(([name, taskCount], index) => ({
+        name,
+        tasks: taskCount,
+        fill: `hsl(var(--chart-${(index % 5) + 1}))`
     }));
   }, [employees, tasks]);
 
@@ -83,7 +100,7 @@ export default function ReportsPage() {
   } satisfies ChartConfig;
 
   const taskStatusChartConfig = {
-    tasks: {
+    value: {
       label: "Tasks",
     },
   } satisfies ChartConfig;
@@ -142,7 +159,7 @@ export default function ReportsPage() {
                 Consumption of ice cream flavors in the last 30 days.
                 </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={() => handleExport(inventoryConsumptionData, "inventory-consumption")}>
+            <Button variant="outline" size="sm" onClick={() => handleExport(inventoryConsumptionData, "inventory-consumption")} disabled={inventoryLoading}>
                 <Download className="mr-2 h-4 w-4" />
                 Export
             </Button>
@@ -180,7 +197,7 @@ export default function ReportsPage() {
                         Overview of pending vs. completed tasks.
                     </CardDescription>
                 </div>
-                 <Button variant="outline" size="sm" onClick={() => handleExport(taskStatusData, "task-completion-rate")}>
+                 <Button variant="outline" size="sm" onClick={() => handleExport(taskStatusData, "task-completion-rate")} disabled={tasksLoading}>
                     <Download className="mr-2 h-4 w-4" />
                     Export
                 </Button>
@@ -224,7 +241,7 @@ export default function ReportsPage() {
                         Number of tasks assigned to each employee.
                     </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => handleExport(employeeTaskData, "employee-task-distribution")}>
+                <Button variant="outline" size="sm" onClick={() => handleExport(employeeTaskData, "employee-task-distribution")} disabled={employeesLoading || tasksLoading}>
                     <Download className="mr-2 h-4 w-4" />
                     Export
                 </Button>
@@ -235,7 +252,7 @@ export default function ReportsPage() {
                         <BarChart accessibilityLayer data={employeeTaskData} layout="vertical">
                         <CartesianGrid horizontal={false} />
                         <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
+                        <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} />
                         <ChartTooltip
                             cursor={false}
                             content={<ChartTooltipContent indicator="dot" />}

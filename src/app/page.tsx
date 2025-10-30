@@ -27,34 +27,9 @@ import {
   Users,
   ClipboardCheck,
   Package,
-  ArrowRightLeft,
-  UserPlus,
 } from "lucide-react";
 import type { Task, InventoryItem, Employee } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const recentActivities = [
-  {
-    icon: <ArrowRightLeft className="h-5 w-5" />,
-    description: "Shift swap approved: Alice for Bob on 2024-08-05",
-    time: "15m ago",
-  },
-  {
-    icon: <ClipboardCheck className="h-5 w-5" />,
-    description: "Task completed: 'Deep clean freezers' by Charlie",
-    time: "1h ago",
-  },
-  {
-    icon: <UserPlus className="h-5 w-5" />,
-    description: "New employee onboarded: Diana",
-    time: "3h ago",
-  },
-    {
-    icon: <Package className="h-5 w-5" />,
-    description: "New stock added: 20 tubs of 'Mint Chip'",
-    time: "1d ago",
-  },
-];
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -166,7 +141,7 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {tasksLoading ? <Skeleton className="h-[250px] w-full" /> : <TasksChart />}
+            {(tasksLoading || employeesLoading) ? <Skeleton className="h-[250px] w-full" /> : <TasksChart tasks={tasks} employees={employees} />}
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
@@ -213,26 +188,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-       <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <div key={index} className="flex items-start gap-4">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-                    {activity.icon}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm">{activity.description}</p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
     </>
   );
 }
