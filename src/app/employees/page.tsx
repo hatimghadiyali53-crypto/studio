@@ -105,10 +105,10 @@ export default function EmployeesPage() {
   const firestore = useFirestore();
   const employeesCollection = useMemoFirebase(() => firestore && user ? collection(firestore, 'employees') : null, [firestore, user]);
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
-
-  const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
+  
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
+  const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
 
   const paginatedEmployees = useMemo(() => {
     if (!employees) return [];
@@ -151,8 +151,6 @@ export default function EmployeesPage() {
   const handleChecklistChange = (categoryId: string, itemId: string, completed: boolean) => {
     if (!firestore || !selectedEmployee) return;
 
-    let updatedEmployee: Employee | null = null;
-
     const updatedChecklist = selectedEmployee.onboardingChecklist.map(category => {
       if (category.id === categoryId) {
         return {
@@ -168,7 +166,7 @@ export default function EmployeesPage() {
     const allCompleted = updatedChecklist.every(category => category.items.every(item => item.completed));
     const newStatus = allCompleted ? 'Completed' : 'Pending';
 
-    updatedEmployee = {
+    const updatedEmployee: Employee = {
       ...selectedEmployee,
       onboardingChecklist: updatedChecklist,
       onboardingStatus: newStatus,
@@ -451,5 +449,3 @@ export default function EmployeesPage() {
     </>
   );
 }
-
-    
