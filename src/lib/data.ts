@@ -7,7 +7,7 @@ import type { Employee, Task, InventoryItem, RosterShift, AttendanceRecord } fro
 
 export const employees: Employee[] = [
   { id: 'emp-1', name: 'Alice', email: 'alice@paradise.scoop', role: 'Shift Lead', onboardingStatus: 'Completed', store: 'Coomera' },
-  { id: 'emp-2', name: 'Bob', email: 'bob@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', store: 'Ipswich' },
+  { id: 'emp-2', name: 'Bob', email: 'hatimghadiyali53@gmail.com', role: 'Scooper', onboardingStatus: 'Completed', store: 'Ipswich' },
   { id: 'emp-3', name: 'Charlie', email: 'charlie@paradise.scoop', role: 'Scooper', onboardingStatus: 'Completed', store: 'Northlakes' },
 ];
 
