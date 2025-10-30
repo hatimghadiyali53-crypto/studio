@@ -147,16 +147,21 @@ export default function RosterPage() {
   }, [employees]);
 
   const combinedRosterData = useMemo(() => {
-    if (!originalRoster || !employees) return null;
+    if (!originalRoster || !employees || employeeMap.size === 0) return null;
+    
     return originalRoster.map(schedule => {
         const employee = employeeMap.get(schedule.employeeId);
-        return employee ? {
+        if (!employee) return null; // Skip if no matching employee
+        
+        return {
             rosterId: schedule.id,
             employee: employee,
             shifts: schedule.shifts
-        } : null;
-    }).filter((item): item is RosterDisplayItem => item !== null);
+        };
+    }).filter((item): item is RosterDisplayItem => item !== null)
+      .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   }, [originalRoster, employees, employeeMap]);
+
 
   useEffect(() => {
     if (combinedRosterData) {
@@ -243,6 +248,9 @@ export default function RosterPage() {
         {!isLoading && displayRoster?.map((item) => (
             <RosterCard key={item.rosterId} item={item} isEditing={isEditing} onShiftChange={handleShiftChange} />
         ))}
+         {!isLoading && (!displayRoster || displayRoster.length === 0) && (
+            <Card><CardContent className="p-6 text-center text-muted-foreground">No employees found on the roster. Add one from the Employees page.</CardContent></Card>
+        )}
       </div>
 
       {/* Desktop View - Table */}
