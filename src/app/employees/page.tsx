@@ -325,7 +325,7 @@ export default function EmployeesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" disabled>
                         View
                     </Button>
                   </TableCell>
@@ -370,5 +370,3 @@ export default function EmployeesPage() {
     </>
   );
 }
-
-    

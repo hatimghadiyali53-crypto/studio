@@ -107,6 +107,9 @@ export default function TasksPage() {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
+            name: "",
+            assignedTo: "",
+            dueDate: undefined,
             category: "One-Time",
         }
     });
@@ -376,5 +379,3 @@ export default function TasksPage() {
     </>
   );
 }
-
-    
