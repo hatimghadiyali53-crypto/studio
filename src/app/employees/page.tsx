@@ -48,7 +48,9 @@ import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { employees as staticEmployees } from '@/lib/data';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
+import { collection } from 'firebase/firestore';
+
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -70,15 +72,17 @@ export default function EmployeesPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [employees, setEmployees] = useState<Employee[]>(staticEmployees);
-  const employeesLoading = false;
+  
+  const firestore = useFirestore();
+  const employeesCollection = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
 
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedEmployees = useMemo(() => {
     if (!employees) return [];
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    return employees.slice(startIndex, endIndex);
+    return [...employees].sort((a,b) => a.name.localeCompare(b.name)).slice(startIndex, endIndex);
   }, [employees, currentPage]);
 
 
@@ -92,14 +96,13 @@ export default function EmployeesPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const newEmployee: Employee = {
-        id: `emp-${Date.now()}`,
+    const newEmployee = {
         name: values.name,
         email: values.email,
         role: values.role,
         onboardingStatus: "Pending",
     };
-    setEmployees(prev => [...prev, newEmployee]);
+    addDocumentNonBlocking(employeesCollection, newEmployee);
     form.reset();
     setAddDialogOpen(false);
   }
@@ -217,7 +220,7 @@ export default function EmployeesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employeesLoading && Array.from({ length: 5 }).map((_, i) => (
+                {employeesLoading && Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -233,7 +236,7 @@ export default function EmployeesPage() {
                     <TableCell className="text-right"><Skeleton className="h-8 w-16" /></TableCell>
                   </TableRow>
                 ))}
-                {!employeesLoading && paginatedEmployees.map((employee) => (
+                {!employeesLoading && paginatedEmployees?.map((employee) => (
                   <TableRow key={employee.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -268,32 +271,41 @@ export default function EmployeesPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {!employeesLoading && employees?.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                            No employees found.
+                        </TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
         </CardContent>
-        <CardFooter className="flex items-center justify-between pt-6">
-          <div className="text-sm text-muted-foreground">
-            Showing page {currentPage} of {totalPages}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </CardFooter>
+        {employees && employees.length > 0 && (
+          <CardFooter className="flex items-center justify-between pt-6">
+            <div className="text-sm text-muted-foreground">
+              Showing page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </CardFooter>
+        )}
       </Card>
       
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
@@ -338,3 +350,5 @@ export default function EmployeesPage() {
     </>
   );
 }
+
+    
