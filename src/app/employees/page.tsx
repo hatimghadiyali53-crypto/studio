@@ -116,7 +116,7 @@ export default function EmployeesPage() {
   const paginatedEmployees = useMemo(() => {
     if (!employees) return [];
     return [...employees].sort((a,b) => a.name.localeCompare(b.name)).slice(startIndex, endIndex);
-  }, [employees, currentPage, startIndex, endIndex]);
+  }, [employees, startIndex, endIndex]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -181,13 +181,14 @@ export default function EmployeesPage() {
     const allCompleted = updatedChecklist.every(category => category.items.every(item => item.completed));
     const newStatus = allCompleted ? 'Completed' : 'Pending';
 
-    const updatedEmployee = {
-      ...selectedEmployee,
-      onboardingChecklist: updatedChecklist,
-      onboardingStatus: newStatus,
-    };
-    setSelectedEmployee(updatedEmployee);
+    // Update the local state for immediate UI feedback
+    setSelectedEmployee({
+        ...selectedEmployee,
+        onboardingChecklist: updatedChecklist,
+        onboardingStatus: newStatus,
+    });
     
+    // Update the document in Firestore
     const employeeDocRef = doc(firestore, 'employees', employeeId);
     updateDocumentNonBlocking(employeeDocRef, { 
       onboardingChecklist: updatedChecklist,
@@ -373,7 +374,7 @@ export default function EmployeesPage() {
         {employees && employees.length > 0 && totalPages > 1 && (
           <CardFooter className="flex items-center justify-between pt-6">
             <div className="text-sm text-muted-foreground">
-              Showing page {currentPage} of {totalPages}
+              Showing {startIndex + 1} - {Math.min(endIndex, employees.length)} of {employees.length} employees
             </div>
             <div className="flex items-center gap-2">
               <Button
