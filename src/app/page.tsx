@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import {
   Card,
   CardContent,
@@ -29,33 +29,9 @@ import {
   ArrowRightLeft,
   UserPlus,
 } from "lucide-react";
-
-const kpiData = [
-  {
-    title: "Total Employees",
-    value: "12",
-    icon: <Users className="h-6 w-6 text-muted-foreground" />,
-    description: "2 new employees joined this month",
-  },
-  {
-    title: "Tasks Completed",
-    value: "86%",
-    icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" />,
-    description: "Highest completion rate this quarter",
-  },
-  {
-    title: "Low Stock Items",
-    value: "3",
-    icon: <Package className="h-6 w-6 text-muted-foreground" />,
-    description: "Vanilla, Chocolate, Strawberry",
-  },
-];
-
-const lowStockItems = [
-  { name: "Vanilla Bean", stock: 8, unit: "Tubs" },
-  { name: "Chocolate Fudge", stock: 5, unit: "Tubs" },
-  { name: "Strawberry Bliss", stock: 9, unit: "Tubs" },
-];
+import type { Employee, Task, InventoryItem } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { collection } from 'firebase/firestore';
 
 const recentActivities = [
   {
@@ -83,12 +59,58 @@ const recentActivities = [
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const firestore = useFirestore();
+
+  const employeesRef = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+  const tasksRef = useMemoFirebase(() => collection(firestore, 'tasks'), [firestore]);
+  const inventoryRef = useMemoFirebase(() => collection(firestore, 'inventoryItems'), [firestore]);
+
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesRef);
+  const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksRef);
+  const { data: inventory, isLoading: inventoryLoading } = useCollection<InventoryItem>(inventoryRef);
+
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
+
+  const kpiData = useMemo(() => {
+    const totalEmployees = employees?.length ?? 0;
+    const completedTasks = tasks?.filter(t => t.status === 'Completed').length ?? 0;
+    const totalTasks = tasks?.length ?? 0;
+    const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    const lowStockItemsCount = inventory?.filter(i => i.inStock <= i.lowThreshold).length ?? 0;
+
+    return [
+      {
+        title: "Total Employees",
+        value: totalEmployees.toString(),
+        icon: <Users className="h-6 w-6 text-muted-foreground" />,
+        description: "From the start of time",
+        isLoading: employeesLoading,
+      },
+      {
+        title: "Tasks Completed",
+        value: `${completionPercentage}%`,
+        icon: <ClipboardCheck className="h-6 w-6 text-muted-foreground" />,
+        description: `Completed: ${completedTasks} of ${totalTasks}`,
+        isLoading: tasksLoading,
+      },
+      {
+        title: "Low Stock Items",
+        value: lowStockItemsCount.toString(),
+        icon: <Package className="h-6 w-6 text-muted-foreground" />,
+        description: "Items needing reorder",
+        isLoading: inventoryLoading,
+      },
+    ];
+  }, [employees, tasks, inventory, employeesLoading, tasksLoading, inventoryLoading]);
+
+  const lowStockItems = useMemo(() => {
+    return inventory?.filter(i => i.inStock <= i.lowThreshold) ?? [];
+  }, [inventory]);
 
   if (isUserLoading || !user) {
     return (
@@ -109,10 +131,19 @@ export default function DashboardPage() {
               {kpi.icon}
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{kpi.value}</div>
-              <p className="text-xs text-muted-foreground">
-                {kpi.description}
-              </p>
+              {kpi.isLoading ? (
+                <>
+                  <Skeleton className="h-8 w-1/2" />
+                  <Skeleton className="mt-1 h-4 w-3/4" />
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{kpi.value}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {kpi.description}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -126,7 +157,7 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <TasksChart />
+            {tasksLoading ? <Skeleton className="h-[250px] w-full" /> : <TasksChart />}
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
@@ -135,26 +166,34 @@ export default function DashboardPage() {
             <CardDescription>Items that are currently low in stock.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Flavor</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lowStockItems.map((item) => (
-                  <TableRow key={item.name}>
-                    <TableCell>
-                      <div className="font-medium">{item.name}</div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="destructive">{`${item.stock} ${item.unit}`}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+             {inventoryLoading ? (
+               <div className="space-y-4">
+                 <Skeleton className="h-10 w-full" />
+                 <Skeleton className="h-10 w-full" />
+                 <Skeleton className="h-10 w-full" />
+               </div>
+             ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Flavor</TableHead>
+                      <TableHead className="text-right">Stock</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lowStockItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div className="font-medium">{item.name}</div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="destructive">{`${item.inStock} ${item.unit}`}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+             )}
           </CardContent>
         </Card>
       </div>
@@ -181,3 +220,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
