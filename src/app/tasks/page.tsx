@@ -178,7 +178,7 @@ export default function TasksPage() {
                           <FormLabel>Assign To</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger disabled={employeesLoading}>
                                 <SelectValue placeholder="Select an employee" />
                               </SelectTrigger>
                             </FormControl>
@@ -287,7 +287,7 @@ export default function TasksPage() {
                     <TableCell className="text-right"><Skeleton className="h-8 w-32" /></TableCell>
                 </TableRow>
             ))}
-            {!tasksLoading && paginatedTasks.map((task) => {
+            {!tasksLoading && paginatedTasks?.map((task) => {
                 const employee = employeeMap[task.assignedTo];
                 const dueDate = typeof task.dueDate === 'string' ? task.dueDate : format(task.dueDate as Date, "yyyy-MM-dd");
                 return (
@@ -337,6 +337,13 @@ export default function TasksPage() {
                 </TableRow>
                 );
             })}
+             {!tasksLoading && tasks?.length === 0 && (
+                <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                        No tasks found.
+                    </TableCell>
+                </TableRow>
+            )}
             </TableBody>
         </Table>
         </CardContent>
@@ -369,3 +376,5 @@ export default function TasksPage() {
     </>
   );
 }
+
+    

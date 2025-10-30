@@ -44,7 +44,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import type { AttendanceRecord, Employee, RosterShift } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { employees as staticEmployees, attendance as staticAttendance, roster as staticRoster } from '@/lib/data';
+import { useFirestore, useCollection, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
+import { collection, doc, query, where, getDocs } from "firebase/firestore";
 
 
 const formSchema = z.object({
@@ -60,13 +61,28 @@ export default function AttendancePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   
-  const [employees, setEmployees] = useState<Employee[]>(staticEmployees);
-  const [attendanceLog, setAttendanceLog] = useState<AttendanceRecord[]>(staticAttendance);
-  const [roster, setRoster] = useState<RosterShift[]>(staticRoster);
+  const { user } = useUser();
+  const firestore = useFirestore();
 
-  const employeesLoading = false;
-  const attendanceLoading = false;
-  const rosterLoading = false;
+  const employeesQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'employees');
+  }, [firestore, user]);
+  
+  const attendanceQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'attendance');
+  }, [firestore, user]);
+
+  const rosterQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'roster');
+  }, [firestore, user]);
+
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
+  const { data: attendanceLog, isLoading: attendanceLoading } = useCollection<AttendanceRecord>(attendanceQuery);
+  const { data: roster, isLoading: rosterLoading } = useCollection<RosterShift>(rosterQuery);
+
 
   const employeeMap = useMemo(() => {
     if (!employees) return {};
@@ -95,18 +111,22 @@ export default function AttendancePage() {
   }, []);
   
   const handleClockIn = async (values: z.infer<typeof formSchema>) => {
+    if (!attendanceQuery || !firestore) return;
     const employeeId = values.employeeId;
     const today = format(new Date(), "yyyy-MM-dd");
 
-    const existingEntry = attendanceLog?.find(
-      (record) => record.employeeId === employeeId && record.status === 'Clocked In'
+    const q = query(
+      attendanceQuery,
+      where("employeeId", "==", employeeId),
+      where("status", "==", "Clocked In")
     );
+    const existingEntrySnapshot = await getDocs(q);
 
-    if (existingEntry) {
+    if (!existingEntrySnapshot.empty) {
       toast({
         variant: "destructive",
         title: "Already Clocked In",
-        description: `${employeeMap[employeeId]?.name} is already clocked in for today.`,
+        description: `${employeeMap[employeeId]?.name} is already clocked in.`,
       });
       return;
     }
@@ -122,8 +142,7 @@ export default function AttendancePage() {
     
     const isLate = clockInHour > shiftHour || (clockInHour === shiftHour && clockInMinute > 5);
 
-    const newRecord: AttendanceRecord = {
-      id: `att-${Date.now()}`,
+    const newRecord: Omit<AttendanceRecord, 'id'> = {
       employeeId,
       date: today,
       clockInTime,
@@ -131,7 +150,7 @@ export default function AttendancePage() {
       status: isLate ? 'Late' : 'Clocked In',
     };
 
-    setAttendanceLog(prev => [newRecord, ...prev]);
+    addDocumentNonBlocking(attendanceQuery, newRecord);
     toast({
       title: "Clocked In!",
       description: `${employeeMap[employeeId]?.name} clocked in at ${clockInTime}.`,
@@ -140,13 +159,17 @@ export default function AttendancePage() {
   };
 
   const handleClockOut = async (values: z.infer<typeof formSchema>) => {
+    if (!attendanceQuery || !firestore) return;
     const employeeId = values.employeeId;
     
-    const recordToUpdate = attendanceLog?.find(
-      (record) => record.employeeId === employeeId && record.status !== 'Clocked Out'
-    );
+    const q = query(
+        attendanceQuery,
+        where("employeeId", "==", employeeId),
+        where("status", "!=", "Clocked Out")
+      );
+    const snapshot = await getDocs(q);
 
-    if (!recordToUpdate) {
+    if (snapshot.empty) {
       toast({
         variant: "destructive",
         title: "Not Clocked In",
@@ -154,14 +177,12 @@ export default function AttendancePage() {
       });
       return;
     }
-
+    
+    const recordToUpdate = snapshot.docs[0];
     const clockOutTime = format(new Date(), "HH:mm");
     
-    setAttendanceLog(currentLog => currentLog.map(rec => 
-        rec.id === recordToUpdate.id 
-        ? { ...rec, clockOutTime: clockOutTime, status: 'Clocked Out' } 
-        : rec
-    ));
+    const recordRef = doc(firestore, 'attendance', recordToUpdate.id);
+    updateDocumentNonBlocking(recordRef, { clockOutTime: clockOutTime, status: 'Clocked Out' });
 
     toast({
       title: "Clocked Out!",
@@ -301,6 +322,13 @@ export default function AttendancePage() {
                       </TableRow>
                     );
                   })}
+                   {!attendanceLoading && attendanceLog?.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                            No attendance records found.
+                        </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -333,3 +361,5 @@ export default function AttendancePage() {
     </>
   );
 }
+
+    

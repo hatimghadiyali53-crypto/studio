@@ -59,7 +59,8 @@ import type { InventoryItem } from "@/lib/types";
 import { Plus, Minus, Wand2, Calculator, PlusCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { inventory as staticInventory } from '@/lib/data';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, useUser } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
 
 const formSchema = z.object({
   name: z.string().min(2, "Item name must be at least 2 characters."),
@@ -79,8 +80,15 @@ export default function InventoryPage() {
   const [stockQuantity, setStockQuantity] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [inventory, setInventory] = useState<InventoryItem[]>(staticInventory);
-  const inventoryLoading = false;
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const inventoryCollection = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'inventoryItems');
+  }, [firestore, user]);
+
+  const { data: inventory, isLoading: inventoryLoading } = useCollection<InventoryItem>(inventoryCollection);
 
   const totalPages = Math.ceil((inventory?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedInventory = useMemo(() => {
@@ -102,11 +110,8 @@ export default function InventoryPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const newItem: InventoryItem = {
-      id: `item-${Date.now()}`,
-      ...values,
-    };
-    setInventory(prev => [...prev, newItem]);
+    if (!inventoryCollection) return;
+    addDocumentNonBlocking(inventoryCollection, values);
     form.reset();
     setAddDialogOpen(false);
   }
@@ -119,14 +124,13 @@ export default function InventoryPage() {
   };
   
   const handleConfirmStockChange = async () => {
-    if (!selectedItem || !stockAction) return;
+    if (!selectedItem || !stockAction || !firestore) return;
 
     const changeAmount = stockAction === 'add' ? stockQuantity : -stockQuantity;
-    setInventory(currentInv => currentInv.map(item => 
-        item.id === selectedItem.id 
-        ? { ...item, inStock: item.inStock + changeAmount }
-        : item
-    ));
+    const newStock = selectedItem.inStock + changeAmount;
+    
+    const itemRef = doc(firestore, 'inventoryItems', selectedItem.id);
+    updateDocumentNonBlocking(itemRef, { inStock: newStock });
 
     setStockDialogOpen(false);
     setSelectedItem(null);
@@ -352,32 +356,41 @@ export default function InventoryPage() {
                       </TableCell>
                     </TableRow>
                   ))}
+                   {!inventoryLoading && inventory?.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                            No inventory items found.
+                        </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="flex items-center justify-between pt-6">
-                <div className="text-sm text-muted-foreground">
-                    Showing page {currentPage} of {totalPages}
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePreviousPage}
-                    disabled={currentPage === 1}
-                    >
-                    Previous
-                    </Button>
-                    <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
-                    >
-                    Next
-                    </Button>
-                </div>
-            </CardFooter>
+             {inventory && inventory.length > 0 && totalPages > 1 && (
+              <CardFooter className="flex items-center justify-between pt-6">
+                  <div className="text-sm text-muted-foreground">
+                      Showing page {currentPage} of {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePreviousPage}
+                      disabled={currentPage === 1}
+                      >
+                      Previous
+                      </Button>
+                      <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      >
+                      Next
+                      </Button>
+                  </div>
+              </CardFooter>
+            )}
           </Card>
         </TabsContent>
         <TabsContent value="predict">
@@ -503,3 +516,5 @@ export default function InventoryPage() {
       </Dialog>
     </>
   );
+
+    

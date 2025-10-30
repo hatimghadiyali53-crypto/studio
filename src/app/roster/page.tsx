@@ -21,24 +21,37 @@ import { Input } from "@/components/ui/input";
 import { Download, Pencil, Save } from "lucide-react";
 import type { Employee, RosterShift } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { employees as staticEmployees, roster as staticRoster } from '@/lib/data';
+import { useFirestore, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 export default function RosterPage() {
   const [isEditing, setIsEditing] = useState(false);
   
-  const [employees, setEmployees] = useState<Employee[]>(staticEmployees);
-  const [roster, setRoster] = useState<RosterShift[]>(staticRoster);
-  const employeesLoading = false;
-  const rosterLoading = false;
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const employeesQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'employees');
+  }, [firestore, user]);
+
+  const rosterQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'roster');
+  }, [firestore, user]);
+
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
+  const { data: roster, isLoading: rosterLoading } = useCollection<RosterShift>(rosterQuery);
   
   // Local state to manage edits before saving
   const [localRoster, setLocalRoster] = useState<RosterShift[] | null>(null);
 
   useEffect(() => {
     if (roster) {
-      setLocalRoster(roster);
+      // Create a deep copy for local editing to avoid mutating the original state
+      setLocalRoster(JSON.parse(JSON.stringify(roster)));
     }
   }, [roster]);
 
@@ -51,9 +64,13 @@ export default function RosterPage() {
   }, [employees]);
   
   const handleEditToggle = async () => {
-    if (isEditing && localRoster) {
-        // "Save" changes by updating the main roster state
-        setRoster(localRoster);
+    if (isEditing && localRoster && firestore) {
+        // "Save" changes by updating each document in Firestore
+        const promises = localRoster.map(schedule => {
+            const rosterDocRef = doc(firestore, 'roster', schedule.id);
+            return updateDocumentNonBlocking(rosterDocRef, { shifts: schedule.shifts });
+        });
+        await Promise.all(promises);
     } else if (!isEditing && roster) {
         // Enter edit mode, copy firestore data to local state
         setLocalRoster(JSON.parse(JSON.stringify(roster)));
@@ -62,9 +79,9 @@ export default function RosterPage() {
   };
 
   const handleShiftChange = (employeeId: string, day: string, value: string) => {
-    if (!localRoster) return;
-    setLocalRoster(currentRoster =>
-      currentRoster!.map(schedule => {
+    setLocalRoster(currentRoster => {
+      if (!currentRoster) return null;
+      return currentRoster.map(schedule => {
         if (schedule.employeeId === employeeId) {
           return {
             ...schedule,
@@ -75,10 +92,10 @@ export default function RosterPage() {
           };
         }
         return schedule;
-      })
-    );
+      });
+    });
   };
-
+  
   const handleExport = () => {
     if(!roster) return;
     const headers = ["Employee", ...weekDays];
@@ -112,11 +129,11 @@ export default function RosterPage() {
   return (
     <>
       <PageHeader title="Weekly Roster" description="View and manage the employee schedule for the current week.">
-        <Button variant="outline" onClick={handleEditToggle}>
+        <Button variant="outline" onClick={handleEditToggle} disabled={!localRoster}>
           {isEditing ? <Save className="mr-2 h-4 w-4" /> : <Pencil className="mr-2 h-4 w-4" />}
           {isEditing ? "Save Roster" : "Edit Roster"}
         </Button>
-        <Button onClick={handleExport}>
+        <Button onClick={handleExport} disabled={!roster || roster.length === 0}>
           <Download className="mr-2 h-4 w-4" />
           Export
         </Button>
@@ -151,6 +168,7 @@ export default function RosterPage() {
                                             value={schedule.shifts[day] || ''}
                                             onChange={(e) => handleShiftChange(schedule.employeeId, day, e.target.value)}
                                             className="h-8 w-32"
+                                            placeholder="e.g., 9AM-5PM"
                                         />
                                     ) : schedule.shifts[day] === 'OFF' || !schedule.shifts[day] ? (
                                         <span className="text-muted-foreground text-sm">OFF</span>
@@ -209,8 +227,9 @@ export default function RosterPage() {
                         {isEditing ? (
                           <Input
                             value={schedule.shifts[day] || ''}
-                            onChange={(e) => handleShiftChange(schedule.employeeId, day, e.target.value)}
+                            onChange={(e) => handleShiftChange(employee.id, day, e.target.value)}
                             className="h-8"
+                            placeholder="e.g., 9AM-5PM"
                           />
                         ) : schedule.shifts[day] === 'OFF' || !schedule.shifts[day] ? (
                           <span className="text-muted-foreground">OFF</span>
@@ -224,6 +243,13 @@ export default function RosterPage() {
                   </TableRow>
                 );
               })}
+               {!rosterLoading && (!displayRoster || displayRoster.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={weekDays.length + 1} className="h-24 text-center">
+                    No roster data found.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -231,3 +257,5 @@ export default function RosterPage() {
     </>
   );
 }
+
+    
