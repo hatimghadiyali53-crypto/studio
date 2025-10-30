@@ -21,14 +21,105 @@ import { Input } from "@/components/ui/input";
 import { Download, Pencil, Save } from "lucide-react";
 import type { Employee, RosterShift } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFirestore, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser, updateDocumentNonBlocking, useDoc } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-type RosterViewData = {
-    employee: Employee;
-    schedule: RosterShift;
+function RosterRow({ schedule, isEditing, onShiftChange }: { schedule: RosterShift, isEditing: boolean, onShiftChange: (employeeId: string, day: string, value: string) => void }) {
+    const firestore = useFirestore();
+    const employeeRef = useMemoFirebase(() => firestore ? doc(firestore, 'employees', schedule.employeeId) : null, [firestore, schedule.employeeId]);
+    const { data: employee, isLoading: employeeLoading } = useDoc<Employee>(employeeRef);
+
+    if (employeeLoading || !employee) {
+        return (
+            <TableRow>
+                <TableCell><Skeleton className="h-10 w-48" /></TableCell>
+                {weekDays.map(day => <TableCell key={day}><Skeleton className="h-8 w-full" /></TableCell>)}
+            </TableRow>
+        );
+    }
+    
+    return (
+        <TableRow>
+            <TableCell>
+                <div className="flex items-center gap-3">
+                <Avatar>
+                    <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                    <div className="font-medium">{employee.name}</div>
+                    <div className="text-sm text-muted-foreground">{employee.role}</div>
+                </div>
+                </div>
+            </TableCell>
+            {weekDays.map((day) => (
+                <TableCell key={day}>
+                {isEditing ? (
+                    <Input
+                    value={schedule.shifts[day] || ''}
+                    onChange={(e) => onShiftChange(schedule.id, day, e.target.value)}
+                    className="h-8"
+                    placeholder="e.g., 9AM-5PM"
+                    />
+                ) : schedule.shifts[day] === 'OFF' || !schedule.shifts[day] ? (
+                    <span className="text-muted-foreground">OFF</span>
+                ) : (
+                    <div className="rounded-md bg-secondary px-2 py-1 text-center text-sm text-secondary-foreground">
+                    {schedule.shifts[day]}
+                    </div>
+                )}
+                </TableCell>
+            ))}
+        </TableRow>
+    );
+}
+
+function RosterCard({ schedule, isEditing, onShiftChange }: { schedule: RosterShift, isEditing: boolean, onShiftChange: (employeeId: string, day: string, value: string) => void }) {
+    const firestore = useFirestore();
+    const employeeRef = useMemoFirebase(() => firestore ? doc(firestore, 'employees', schedule.employeeId) : null, [firestore, schedule.employeeId]);
+    const { data: employee, isLoading: employeeLoading } = useDoc<Employee>(employeeRef);
+
+    if (employeeLoading || !employee) {
+        return <Card><CardContent className="p-4"><Skeleton className="h-32 w-full" /></CardContent></Card>;
+    }
+
+    return (
+        <Card>
+            <CardContent className="p-4">
+                <div className="flex items-center gap-3 mb-4">
+                    <Avatar>
+                        <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <div className="font-medium">{employee.name}</div>
+                        <div className="text-sm text-muted-foreground">{employee.role}</div>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                   {weekDays.map(day => (
+                        <div key={day} className="flex justify-between items-center">
+                            <span className="font-medium text-sm">{day}</span>
+                             {isEditing ? (
+                                <Input
+                                    value={schedule.shifts[day] || ''}
+                                    onChange={(e) => onShiftChange(schedule.id, day, e.target.value)}
+                                    className="h-8 w-32"
+                                    placeholder="e.g., 9AM-5PM"
+                                />
+                            ) : schedule.shifts[day] === 'OFF' || !schedule.shifts[day] ? (
+                                <span className="text-muted-foreground text-sm">OFF</span>
+                            ) : (
+                                <div className="rounded-md bg-secondary px-2 py-1 text-center text-sm text-secondary-foreground">
+                                    {schedule.shifts[day]}
+                                </div>
+                            )}
+                        </div>
+                   ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
 }
 
 export default function RosterPage() {
@@ -37,45 +128,24 @@ export default function RosterPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const employeesQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'employees');
-  }, [firestore, user]);
-
   const rosterQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'roster');
   }, [firestore, user]);
 
-  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
-  const { data: roster, isLoading: rosterLoading } = useCollection<RosterShift>(rosterQuery);
+  const { data: originalRoster, isLoading: rosterLoading } = useCollection<RosterShift>(rosterQuery);
   
-  const [localRoster, setLocalRoster] = useState<RosterViewData[] | null>(null);
-
-  const combinedRosterData: RosterViewData[] | null = useMemo(() => {
-    if (!employees || !roster) return null;
-
-    const rosterMap = new Map(roster.map(r => [r.employeeId, r]));
-
-    return employees
-      .map(emp => {
-        const schedule = rosterMap.get(emp.id);
-        return schedule ? { employee: emp, schedule } : null;
-      })
-      .filter((item): item is RosterViewData => item !== null)
-      .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
-  }, [employees, roster]);
-
+  const [localRoster, setLocalRoster] = useState<RosterShift[] | null>(null);
 
   useEffect(() => {
-    if (combinedRosterData) {
-      setLocalRoster(JSON.parse(JSON.stringify(combinedRosterData)));
+    if (originalRoster) {
+      setLocalRoster(JSON.parse(JSON.stringify(originalRoster)));
     }
-  }, [combinedRosterData]);
+  }, [originalRoster]);
   
   const handleEditToggle = async () => {
     if (isEditing && localRoster && firestore) {
-        const promises = localRoster.map(({ schedule }) => {
+        const promises = localRoster.map((schedule) => {
             const rosterDocRef = doc(firestore, 'roster', schedule.id);
             return updateDocumentNonBlocking(rosterDocRef, { shifts: schedule.shifts });
         });
@@ -84,19 +154,16 @@ export default function RosterPage() {
     setIsEditing(!isEditing);
   };
 
-  const handleShiftChange = (employeeId: string, day: string, value: string) => {
+  const handleShiftChange = (scheduleId: string, day: string, value: string) => {
     setLocalRoster(currentRoster => {
       if (!currentRoster) return null;
       return currentRoster.map(item => {
-        if (item.employee.id === employeeId) {
+        if (item.id === scheduleId) {
           return {
             ...item,
-            schedule: {
-                ...item.schedule,
-                shifts: {
-                    ...item.schedule.shifts,
-                    [day]: value,
-                }
+            shifts: {
+                ...item.shifts,
+                [day]: value,
             }
           };
         }
@@ -106,14 +173,17 @@ export default function RosterPage() {
   };
   
   const handleExport = () => {
-    if(!combinedRosterData) return;
-    const headers = ["Employee", ...weekDays];
+    if(!localRoster) return;
+    // This part requires employee data, which is now fetched per row.
+    // For a full export, a different data fetching strategy would be needed.
+    // For now, we'll disable the complex export.
+    const headers = ["EmployeeID", ...weekDays];
     const csvRows = [headers.join(",")];
 
-    combinedRosterData.forEach(({ employee, schedule }) => {
+    localRoster.forEach(({ employeeId, shifts }) => {
         const row = [
-          `"${employee.name}"`,
-          ...weekDays.map(day => `"${schedule.shifts[day] || 'OFF'}"`)
+          `"${employeeId}"`,
+          ...weekDays.map(day => `"${shifts[day] || 'OFF'}"`)
         ];
         csvRows.push(row.join(","));
     });
@@ -130,8 +200,8 @@ export default function RosterPage() {
     document.body.removeChild(link);
   };
   
-  const displayRoster = isEditing ? localRoster : combinedRosterData;
-  const isLoading = employeesLoading || rosterLoading;
+  const displayRoster = isEditing ? localRoster : originalRoster;
+  const isLoading = rosterLoading;
 
   return (
     <>
@@ -151,44 +221,9 @@ export default function RosterPage() {
         {isLoading && Array.from({length: 3}).map((_, i) => (
              <Card key={i}><CardContent className="p-4"><Skeleton className="h-32 w-full" /></CardContent></Card>
         ))}
-        {!isLoading && displayRoster?.map(({ employee, schedule }) => {
-            return (
-                <Card key={employee.id}>
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3 mb-4">
-                            <Avatar>
-                                <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <div className="font-medium">{employee.name}</div>
-                                <div className="text-sm text-muted-foreground">{employee.role}</div>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                           {weekDays.map(day => (
-                                <div key={day} className="flex justify-between items-center">
-                                    <span className="font-medium text-sm">{day}</span>
-                                     {isEditing ? (
-                                        <Input
-                                            value={schedule.shifts[day] || ''}
-                                            onChange={(e) => handleShiftChange(employee.id, day, e.target.value)}
-                                            className="h-8 w-32"
-                                            placeholder="e.g., 9AM-5PM"
-                                        />
-                                    ) : schedule.shifts[day] === 'OFF' || !schedule.shifts[day] ? (
-                                        <span className="text-muted-foreground text-sm">OFF</span>
-                                    ) : (
-                                        <div className="rounded-md bg-secondary px-2 py-1 text-center text-sm text-secondary-foreground">
-                                            {schedule.shifts[day]}
-                                        </div>
-                                    )}
-                                </div>
-                           ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )
-        })}
+        {!isLoading && displayRoster?.map((schedule) => (
+            <RosterCard key={schedule.id} schedule={schedule} isEditing={isEditing} onShiftChange={handleShiftChange} />
+        ))}
       </div>
 
       {/* Desktop View - Table */}
@@ -210,41 +245,9 @@ export default function RosterPage() {
                     {weekDays.map(day => <TableCell key={day}><Skeleton className="h-8 w-full" /></TableCell>)}
                 </TableRow>
               ))}
-              {!isLoading && displayRoster?.map(({ employee, schedule }) => {
-                return (
-                  <TableRow key={employee.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{employee.name}</div>
-                          <div className="text-sm text-muted-foreground">{employee.role}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    {weekDays.map((day) => (
-                      <TableCell key={day}>
-                        {isEditing ? (
-                          <Input
-                            value={schedule.shifts[day] || ''}
-                            onChange={(e) => handleShiftChange(employee.id, day, e.target.value)}
-                            className="h-8"
-                            placeholder="e.g., 9AM-5PM"
-                          />
-                        ) : schedule.shifts[day] === 'OFF' || !schedule.shifts[day] ? (
-                          <span className="text-muted-foreground">OFF</span>
-                        ) : (
-                          <div className="rounded-md bg-secondary px-2 py-1 text-center text-sm text-secondary-foreground">
-                            {schedule.shifts[day]}
-                          </div>
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })}
+              {!isLoading && displayRoster?.map((schedule) => (
+                  <RosterRow key={schedule.id} schedule={schedule} isEditing={isEditing} onShiftChange={handleShiftChange} />
+              ))}
                {!isLoading && (!displayRoster || displayRoster.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={weekDays.length + 1} className="h-24 text-center">
@@ -259,3 +262,6 @@ export default function RosterPage() {
     </>
   );
 }
+
+
+    
