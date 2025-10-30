@@ -13,11 +13,11 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -50,7 +50,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useUser, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from 'firebase/firestore';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -94,7 +93,6 @@ const trainingItems: { [key: string]: { id: string, label: string }[] } = {
     ],
 };
 
-
 const ITEMS_PER_PAGE = 5;
 
 export default function EmployeesPage() {
@@ -102,7 +100,7 @@ export default function EmployeesPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const { user } = useUser();
   const firestore = useFirestore();
   const employeesCollection = useMemoFirebase(() => firestore && user ? collection(firestore, 'employees') : null, [firestore, user]);
@@ -114,9 +112,8 @@ export default function EmployeesPage() {
 
   const paginatedEmployees = useMemo(() => {
     if (!employees) return [];
-    return [...employees].sort((a,b) => a.name.localeCompare(b.name)).slice(startIndex, endIndex);
+    return [...employees].sort((a, b) => a.name.localeCompare(b.name)).slice(startIndex, endIndex);
   }, [employees, startIndex, endIndex]);
-
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -132,14 +129,14 @@ export default function EmployeesPage() {
     if (!employeesCollection) return;
 
     const fullChecklist: OnboardingCategory[] = trainingPlan.map(category => ({
-        ...category,
-        items: (trainingItems[category.id] || []).map(item => ({ ...item, completed: false }))
+      ...category,
+      items: (trainingItems[category.id] || []).map(item => ({ ...item, completed: false }))
     }));
 
     const newEmployee = {
-        ...values,
-        onboardingStatus: "Pending" as const,
-        onboardingChecklist: fullChecklist,
+      ...values,
+      onboardingStatus: "Pending" as const,
+      onboardingChecklist: fullChecklist,
     };
     addDocumentNonBlocking(employeesCollection, newEmployee);
     form.reset();
@@ -149,47 +146,49 @@ export default function EmployeesPage() {
   const handleViewClick = (employee: Employee) => {
     setSelectedEmployee(employee);
     setViewDialogOpen(true);
-  }
-  
-  const handlePreviousPage = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
   const handleChecklistChange = (categoryId: string, itemId: string, completed: boolean) => {
     if (!firestore || !selectedEmployee) return;
 
     const updatedChecklist = selectedEmployee.onboardingChecklist.map(category => {
-        if (category.id === categoryId) {
-            return {
-                ...category,
-                items: category.items.map(item => 
-                    item.id === itemId ? { ...item, completed } : item
-                ),
-            };
-        }
-        return category;
+      if (category.id === categoryId) {
+        return {
+          ...category,
+          items: category.items.map(item =>
+            item.id === itemId ? { ...item, completed } : item
+          ),
+        };
+      }
+      return category;
     });
-    
+
     const allCompleted = updatedChecklist.every(category => category.items.every(item => item.completed));
     const newStatus = allCompleted ? 'Completed' : 'Pending';
 
-    // Update the local state for immediate UI feedback
-    setSelectedEmployee({
-        ...selectedEmployee,
-        onboardingChecklist: updatedChecklist,
-        onboardingStatus: newStatus,
-    });
-    
+    // Optimistically update local state for immediate UI feedback
+    const updatedEmployee = {
+      ...selectedEmployee,
+      onboardingChecklist: updatedChecklist,
+      onboardingStatus: newStatus,
+    } as Employee;
+
+    setSelectedEmployee(updatedEmployee);
+
     // Update the document in Firestore
     const employeeDocRef = doc(firestore, 'employees', selectedEmployee.id);
-    updateDocumentNonBlocking(employeeDocRef, { 
+    updateDocumentNonBlocking(employeeDocRef, {
       onboardingChecklist: updatedChecklist,
       onboardingStatus: newStatus
     });
+  };
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
   return (
@@ -293,79 +292,79 @@ export default function EmployeesPage() {
       </PageHeader>
       <Card>
         <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Store</TableHead>
-                  <TableHead>Onboarding Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Employee</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Store</TableHead>
+                <TableHead>Onboarding Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {employeesLoading && Array.from({ length: 3 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div>
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="mt-1 h-3 w-32" />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-8 w-16" /></TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {employeesLoading && Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div>
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="mt-1 h-3 w-32" />
+              ))}
+              {!employeesLoading && paginatedEmployees?.map((employee) => (
+                <TableRow key={employee.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{employee.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {employee.email}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-16" /></TableCell>
-                  </TableRow>
-                ))}
-                {!employeesLoading && paginatedEmployees?.map((employee) => (
-                  <TableRow key={employee.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{employee.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {employee.email}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{employee.role}</TableCell>
-                    <TableCell>{employee.store}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          employee.onboardingStatus === "Completed"
-                            ? "default"
-                            : "secondary"
-                        }
-                        className={employee.onboardingStatus === "Completed" ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : ""}
-                      >
-                        {employee.onboardingStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleViewClick(employee)}>
-                        View
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!employeesLoading && employees?.length === 0 && (
-                    <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
-                            No employees found.
-                        </TableCell>
-                    </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                    </div>
+                  </TableCell>
+                  <TableCell>{employee.role}</TableCell>
+                  <TableCell>{employee.store}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        employee.onboardingStatus === "Completed"
+                          ? "default"
+                          : "secondary"
+                      }
+                      className={employee.onboardingStatus === "Completed" ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : ""}
+                    >
+                      {employee.onboardingStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => handleViewClick(employee)}>
+                      View
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!employeesLoading && employees?.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No employees found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
         {employees && employees.length > 0 && totalPages > 1 && (
           <CardFooter className="flex items-center justify-between pt-6">
@@ -393,62 +392,63 @@ export default function EmployeesPage() {
           </CardFooter>
         )}
       </Card>
-      
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Employee Onboarding</DialogTitle>
-          </DialogHeader>
-          {selectedEmployee && (
+
+      {selectedEmployee && (
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Employee Onboarding</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
-               <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
-                    <AvatarFallback>{selectedEmployee.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{selectedEmployee.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
-                    <p className="text-muted-foreground">{selectedEmployee.email}</p>
+                  <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
+                  <p className="text-muted-foreground">{selectedEmployee.email}</p>
                 </div>
-                 <Badge
-                    variant={
+                <Badge
+                  variant={
                     selectedEmployee.onboardingStatus === "Completed"
-                        ? "default"
-                        : "secondary"
-                    }
-                    className={selectedEmployee.onboardingStatus === "Completed" ? "ml-auto h-fit bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : "ml-auto h-fit"}
+                      ? "default"
+                      : "secondary"
+                  }
+                  className={selectedEmployee.onboardingStatus === "Completed" ? "ml-auto h-fit bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : "ml-auto h-fit"}
                 >
-                    {selectedEmployee.onboardingStatus}
+                  {selectedEmployee.onboardingStatus}
                 </Badge>
               </div>
-              
+
               <Accordion type="multiple" defaultValue={["shift-1"]} className="w-full">
                 {selectedEmployee.onboardingChecklist?.map(category => (
-                    <AccordionItem value={category.id} key={category.id}>
-                        <AccordionTrigger>{category.title}</AccordionTrigger>
-                        <AccordionContent>
-                             <div className="space-y-3 p-2">
-                                {category.items.map(item => (
-                                    <div key={item.id} className="flex items-center space-x-3">
-                                        <Checkbox 
-                                            id={`${selectedEmployee.id}-${item.id}`} 
-                                            checked={item.completed}
-                                            onCheckedChange={(checked) => handleChecklistChange(category.id, item.id, !!checked)}
-                                        />
-                                        <label htmlFor={`${selectedEmployee.id}-${item.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                            {item.label}
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
-                        </AccordionContent>
-                    </AccordionItem>
+                  <AccordionItem value={category.id} key={category.id}>
+                    <AccordionTrigger>{category.title}</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 p-2">
+                        {category.items.map(item => (
+                          <div key={item.id} className="flex items-center space-x-3">
+                            <Checkbox
+                              id={`${selectedEmployee.id}-${item.id}`}
+                              checked={item.completed}
+                              onCheckedChange={(checked) => handleChecklistChange(category.id, item.id, !!checked)}
+                            />
+                            <label htmlFor={`${selectedEmployee.id}-${item.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              {item.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 ))}
               </Accordion>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
+}
 
     
