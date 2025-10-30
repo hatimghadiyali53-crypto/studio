@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -78,10 +78,10 @@ export default function AttendancePage() {
     resolver: zodResolver(formSchema),
   });
 
-  useState(() => {
+  useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  });
+  }, []);
   
   const handleClockIn = (values: z.infer<typeof formSchema>) => {
     const employeeId = values.employeeId;
