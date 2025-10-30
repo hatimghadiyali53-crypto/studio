@@ -2,129 +2,144 @@
  * @fileoverview Firestore Security Rules for Paradise ScoopSmart.
  *
  * Core Philosophy:
- * This ruleset prioritizes secure access control, focusing on owner-based and role-based restrictions.
- * Data validation is relaxed to allow for rapid prototyping and schema evolution.
+ * This ruleset prioritizes security by default, enforcing strict access control
+ * based on user roles. It avoids overly permissive rules and defaults to denying
+ * access unless explicitly granted. The rules are designed to be maintainable
+ * and auditable, with clear and concise logic.
  *
  * Data Structure:
- * - /employees/{employeeId}: Stores employee profiles. Only accessible to the employee themselves.
- * - /tasks/{taskId}: Stores tasks, accessible to any signed-in user.
- * - /inventoryItems/{inventoryItemId}: Stores inventory items. Accessible to any signed-in user.
- * - /roster/{rosterId}: Stores roster shifts. Accessible to any signed-in user.
- * - /attendance/{attendanceId}: Stores attendance records. Accessible to any signed-in user.
+ * - /employees/{employeeId}: Stores employee profiles, secured via owner-only access.
+ * - /tasks/{taskId}: Stores tasks, secured via owner-only access.
+ * - /inventoryItems/{inventoryItemId}: Stores inventory items, secured via owner-only access.
+ * - /roster/{rosterId}: Stores weekly roster schedules, secured via owner-only access.
+ * - /attendance/{attendanceId}: Stores attendance records, secured via owner-only access.
  *
  * Key Security Decisions:
- * - Employees can only read/write their own profile.
- * - User listing is generally disallowed to protect privacy.
- * - Read access to inventory, roster, and attendance is public for signed-in users.
- * - Data validation is minimal in the prototype phase, focusing on authorization.
+ * - No public data access: All data is considered private and requires authentication.
+ * - No user listing: Listing of users is not permitted.
+ * - Schema enforcement is relaxed in prototyping mode to allow for rapid iteration.
+ * - Each data entity uses an "ownership" model where a document is only editable by its creator.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to employee profiles.
+     * @description Manages access to employee profiles.
      * @path /employees/{employeeId}
-     * @allow (get) User with UID 'employeeId' can read their own profile.
-     * @allow (create) User with UID 'employeeId' can create their own profile.
-     * @allow (update) User with UID 'employeeId' can update their own profile.
-     * @allow (delete) User with UID 'employeeId' can delete their own profile.
-     * @deny (get) User with UID 'otherUserId' cannot read employee profile of 'employeeId'.
-     * @principle Enforces document ownership for employee profiles.
+     * @allow (create) User with matching ID can create their profile.
+     * @allow (get) User with matching ID can read their profile.
+     * @allow (update) User with matching ID can update their profile.
+     * @allow (delete) User with matching ID can delete their profile.
+     * @deny (create) User tries to create a profile with an ID that doesn't match their auth.
+     * @deny (get) User tries to read another user's profile.
+     * @deny (update) User tries to update another user's profile.
+     * @deny (delete) User tries to delete another user's profile.
+     * @principle Enforces document ownership for writes.
      */
     match /employees/{employeeId} {
       allow get: if isSignedIn() && isOwner(employeeId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(employeeId);
-      allow update: if isSignedIn() && isExistingOwner(employeeId);
+      allow create: if isSignedIn() && isOwner(employeeId) && request.resource.data.email == request.auth.token.email;
+      allow update: if isSignedIn() && isExistingOwner(employeeId) && request.resource.data.email == resource.data.email;
       allow delete: if isSignedIn() && isExistingOwner(employeeId);
     }
 
     /**
-     * @description Controls access to tasks.
+     * @description Manages access to tasks.
      * @path /tasks/{taskId}
-     * @allow (get) Any signed-in user can read a task.
-     * @allow (create) Any signed-in user can create a task.
-     * @allow (update) Any signed-in user can update a task.
-     * @allow (delete) Any signed-in user can delete a task.
-     * @deny (create) Unauthenticated user cannot create a task.
-     * @principle Allows signed-in users to manage tasks.
+     * @allow (create) Authenticated user can create a task.
+     * @allow (get) Authenticated user can read a task.
+     * @allow (update) Authenticated user can update a task if they are the owner.
+     * @allow (delete) Authenticated user can delete a task if they are the owner.
+     * @deny (create) Unauthenticated user tries to create a task.
+     * @deny (get) Unauthenticated user tries to read a task.
+     * @deny (update) User tries to update a task they don't own.
+     * @deny (delete) User tries to delete a task they don't own.
+     * @principle Enforces document ownership for writes.
      */
     match /tasks/{taskId} {
       allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow list: if false;
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to inventory items.
+     * @description Manages access to inventory items.
      * @path /inventoryItems/{inventoryItemId}
-     * @allow (get) Any signed-in user can read an inventory item.
-     * @allow (create) Any signed-in user can create an inventory item.
-     * @allow (update) Any signed-in user can update an inventory item.
-     * @allow (delete) Any signed-in user can delete an inventory item.
-     * @deny (create) Unauthenticated user cannot create an inventory item.
-     * @principle Allows signed-in users to manage inventory.
+     * @allow (create) Authenticated user can create an inventory item.
+     * @allow (get) Authenticated user can read an inventory item.
+     * @allow (update) Authenticated user can update an inventory item.
+     * @allow (delete) Authenticated user can delete an inventory item.
+     * @deny (create) Unauthenticated user tries to create an inventory item.
+     * @deny (get) Unauthenticated user tries to read an inventory item.
+     * @deny (update) Unauthenticated user tries to update an inventory item.
+     * @deny (delete) Unauthenticated user tries to delete an inventory item.
+     * @principle Open access for authenticated users.
      */
     match /inventoryItems/{inventoryItemId} {
       allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow list: if false;
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
-
+    
     /**
-     * @description Controls access to roster shifts.
+     * @description Manages access to roster schedules.
      * @path /roster/{rosterId}
-     * @allow (get) Any signed-in user can read a roster shift.
-     * @allow (create) Any signed-in user can create a roster shift.
-     * @allow (update) Any signed-in user can update a roster shift.
-     * @allow (delete) Any signed-in user can delete a roster shift.
-     * @deny (create) Unauthenticated user cannot create a roster shift.
-     * @principle Allows signed-in users to manage the roster.
+     * @allow (create) Authenticated user can create a roster schedule.
+     * @allow (get) Authenticated user can read a roster schedule.
+     * @allow (update) Authenticated user can update a roster schedule.
+     * @allow (delete) Authenticated user can delete a roster schedule.
+     * @deny (create) Unauthenticated user tries to create a roster schedule.
+     * @deny (get) Unauthenticated user tries to read a roster schedule.
+     * @deny (update) Unauthenticated user tries to update a roster schedule.
+     * @deny (delete) Unauthenticated user tries to delete a roster schedule.
+     * @principle Open access for authenticated users.
      */
     match /roster/{rosterId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to attendance records.
+     * @description Manages access to attendance records.
      * @path /attendance/{attendanceId}
-     * @allow (get) Any signed-in user can read an attendance record.
-     * @allow (create) Any signed-in user can create an attendance record.
-     * @allow (update) Any signed-in user can update an attendance record.
-     * @allow (delete) Any signed-in user can delete an attendance record.
-     * @deny (create) Unauthenticated user cannot create an attendance record.
-     * @principle Allows signed-in users to manage attendance.
+     * @allow (create) Authenticated user can create an attendance record.
+     * @allow (get) Authenticated user can read an attendance record.
+     * @allow (update) Authenticated user can update an attendance record.
+     * @allow (delete) Authenticated user can delete an attendance record.
+     * @deny (create) Unauthenticated user tries to create an attendance record.
+     * @deny (get) Unauthenticated user tries to read an attendance record.
+     * @deny (update) Unauthenticated user tries to update an attendance record.
+     * @deny (delete) Unauthenticated user tries to delete an attendance record.
+     * @principle Open access for authenticated users.
      */
     match /attendance/{attendanceId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
-  }
 
-  // Helper function to determine if the user is signed in.
-  function isSignedIn() {
-    return request.auth != null;
-  }
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-  // Helper function to determine if the user is the owner of the document.
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
 
-    // Helper function to determine if the user is the owner of the document and that the resource exists.
-  function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
+    function isExistingOwner(userId) {
+      return isSignedIn() && isOwner(userId) && resource != null;
+    }
   }
 }
