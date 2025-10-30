@@ -7,6 +7,12 @@ export type OnboardingChecklistItem = {
   completed: boolean;
 };
 
+export type OnboardingCategory = {
+    id: string;
+    title: string;
+    items: OnboardingChecklistItem[];
+}
+
 export type Employee = {
   id: string;
   name: string;
@@ -14,7 +20,7 @@ export type Employee = {
   role: 'Scooper' | 'Shift Lead' | 'Manager';
   onboardingStatus: 'Pending' | 'Completed';
   store?: 'Coomera' | 'Ipswich' | 'Northlakes';
-  onboardingChecklist: OnboardingChecklistItem[];
+  onboardingChecklist: OnboardingCategory[];
 };
 
 export type Task = {
@@ -51,5 +57,3 @@ export type AttendanceRecord = {
   clockOutTime: string | null;
   status: 'Clocked In' | 'Clocked Out' | 'Late';
 };
-
-    

@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
-import type { Employee, OnboardingChecklistItem } from "@/lib/types";
+import type { Employee, OnboardingCategory } from "@/lib/types";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,6 +50,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useUser, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from 'firebase/firestore';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 const formSchema = z.object({
@@ -59,12 +60,41 @@ const formSchema = z.object({
   store: z.enum(["Coomera", "Ipswich", "Northlakes"]),
 });
 
-const onboardingQuestions: Omit<OnboardingChecklistItem, 'completed'>[] = [
-    { id: "food-handler-permit", label: "Food Handler's Permit" },
-    { id: "w4-form", label: "W-4 Form" },
-    { id: "uniform-agreement", label: "Uniform Agreement" },
-    { id: "handbook-acknowledged", label: "Handbook Acknowledged" },
-]
+const trainingPlan: Omit<OnboardingCategory, 'items'>[] = [
+    { id: 'shift-1', title: 'Shift 1: Core Skills' },
+    { id: 'shift-2', title: 'Shift 2: Menu & Desserts' },
+    { id: 'shift-3', title: 'Shift 3: Advanced Operations' },
+];
+
+const trainingItems: { [key: string]: { id: string, label: string }[] } = {
+    'shift-1': [
+        { id: 's1-quiz', label: 'Quiz on basic knowledge (dipping well, scoop sizes, etc.)' },
+        { id: 's1-scooping', label: 'Practice 3 scooping methods and weigh scoops' },
+        { id: 's1-take-home', label: 'Procedure for take-home packs (weighing, labeling)' },
+        { id: 's1-tub-maintenance', label: 'Demonstrate proper tub maintenance' },
+        { id: 's1-sink-setup', label: 'Sink setup and basic cleaning procedures' },
+        { id: 's1-pos', label: 'POS system training (transactions, training number)' },
+        { id: 's1-money', label: 'Money handling and making change' },
+        { id: 's1-customer-service', label: 'Practice 2-part greeting and enthusiastic tone' },
+        { id: 's1-allergens', label: 'Reading allergen tags and explaining sorbet vs. sherbet' },
+    ],
+    'shift-2': [
+        { id: 's2-shakes', label: 'Shake Menu: Read chart and prepare different shakes' },
+        { id: 's2-ultimate-shakes', label: 'Prepare an Ultimate Shake with toppings and cream' },
+        { id: 's2-iced-coffee', label: 'Prepare an Iced Coffee' },
+        { id: 's2-desserts', label: 'Dessert Menu: Use kids scoops and heat items correctly' },
+        { id: 's2-vertical-sundaes', label: 'Prepare a Vertical Sundae (Brownie/Waffle)' },
+        { id: 's2-whole-desserts', label: 'Prepare a Whole Dessert in a take-home pack' },
+        { id: 's2-classic-sundaes', label: 'Prepare a Regular and Large Classic Sundae' },
+    ],
+    'shift-3': [
+        { id: 's3-delivery-packaging', label: 'Explain packaging for delivery orders (lids, boxes)' },
+        { id: 's3-delivery-fudge', label: 'Explain rules for hot fudge on delivery orders' },
+        { id: 's3-delivery-cream', label: 'No whipped cream on delivery orders' },
+        { id: 's3-delivery-bag-prep', label: 'Prepare a delivery bag (labeling, sealing, receipt)' },
+    ],
+};
+
 
 const ITEMS_PER_PAGE = 5;
 
@@ -82,8 +112,6 @@ export default function EmployeesPage() {
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedEmployees = useMemo(() => {
     if (!employees) return [];
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
     return [...employees].sort((a,b) => a.name.localeCompare(b.name)).slice(startIndex, endIndex);
   }, [employees, currentPage]);
 
@@ -100,13 +128,19 @@ export default function EmployeesPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!employeesCollection) return;
+
+    const fullChecklist: OnboardingCategory[] = trainingPlan.map(category => ({
+        ...category,
+        items: (trainingItems[category.id] || []).map(item => ({ ...item, completed: false }))
+    }));
+
     const newEmployee = {
         name: values.name,
         email: values.email,
         role: values.role,
         store: values.store,
         onboardingStatus: "Pending" as const,
-        onboardingChecklist: onboardingQuestions.map(q => ({ ...q, completed: false })),
+        onboardingChecklist: fullChecklist,
     };
     addDocumentNonBlocking(employeesCollection, newEmployee);
     form.reset();
@@ -126,14 +160,22 @@ export default function EmployeesPage() {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
-  const handleChecklistChange = async (employeeId: string, itemId: string, completed: boolean) => {
+  const handleChecklistChange = async (employeeId: string, categoryId: string, itemId: string, completed: boolean) => {
     if (!firestore || !selectedEmployee) return;
 
-    const updatedChecklist = selectedEmployee.onboardingChecklist.map(item =>
-        item.id === itemId ? { ...item, completed } : item
-    );
+    const updatedChecklist = selectedEmployee.onboardingChecklist.map(category => {
+        if (category.id === categoryId) {
+            return {
+                ...category,
+                items: category.items.map(item => 
+                    item.id === itemId ? { ...item, completed } : item
+                ),
+            };
+        }
+        return category;
+    });
     
-    const allCompleted = updatedChecklist.every(item => item.completed);
+    const allCompleted = updatedChecklist.every(category => category.items.every(item => item.completed));
     const newStatus = allCompleted ? 'Completed' : 'Pending';
 
     const updatedEmployee = {
@@ -149,6 +191,9 @@ export default function EmployeesPage() {
       onboardingStatus: newStatus
     });
   };
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
 
   return (
     <>
@@ -353,9 +398,9 @@ export default function EmployeesPage() {
       </Card>
       
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Employee Details</DialogTitle>
+            <DialogTitle>Employee Onboarding</DialogTitle>
           </DialogHeader>
           {selectedEmployee && (
             <div className="space-y-4">
@@ -367,47 +412,41 @@ export default function EmployeesPage() {
                     <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
                     <p className="text-muted-foreground">{selectedEmployee.email}</p>
                 </div>
+                 <Badge
+                    variant={
+                    selectedEmployee.onboardingStatus === "Completed"
+                        ? "default"
+                        : "secondary"
+                    }
+                    className={selectedEmployee.onboardingStatus === "Completed" ? "ml-auto h-fit bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : "ml-auto h-fit"}
+                >
+                    {selectedEmployee.onboardingStatus}
+                </Badge>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Role</Label>
-                  <p className="text-sm text-muted-foreground">{selectedEmployee.role}</p>
-                </div>
-                 <div>
-                  <Label>Store</Label>
-                  <p className="text-sm text-muted-foreground">{selectedEmployee.store}</p>
-                </div>
-                <div>
-                  <Label>Onboarding</Label>
-                   <Badge
-                      variant={
-                        selectedEmployee.onboardingStatus === "Completed"
-                          ? "default"
-                          : "secondary"
-                      }
-                      className={selectedEmployee.onboardingStatus === "Completed" ? "block w-fit mt-1 bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : "block w-fit mt-1"}
-                    >
-                      {selectedEmployee.onboardingStatus}
-                    </Badge>
-                </div>
-              </div>
-               <div>
-                  <Label>Onboarding Checklist</Label>
-                  <div className="space-y-2 rounded-md border p-4 mt-1">
-                      {selectedEmployee.onboardingChecklist?.map(item => (
-                          <div key={item.id} className="flex items-center space-x-2">
-                              <Checkbox 
-                                id={`${selectedEmployee.id}-${item.id}`} 
-                                checked={item.completed}
-                                onCheckedChange={(checked) => handleChecklistChange(selectedEmployee.id, item.id, !!checked)}
-                              />
-                              <label htmlFor={`${selectedEmployee.id}-${item.id}`} className="text-sm font-medium leading-none">
-                                  {item.label}
-                              </label>
-                          </div>
-                      ))}
-                  </div>
-              </div>
+              
+              <Accordion type="multiple" defaultValue={["shift-1"]} className="w-full">
+                {selectedEmployee.onboardingChecklist?.map(category => (
+                    <AccordionItem value={category.id} key={category.id}>
+                        <AccordionTrigger>{category.title}</AccordionTrigger>
+                        <AccordionContent>
+                             <div className="space-y-3 p-2">
+                                {category.items.map(item => (
+                                    <div key={item.id} className="flex items-center space-x-3">
+                                        <Checkbox 
+                                            id={`${selectedEmployee.id}-${item.id}`} 
+                                            checked={item.completed}
+                                            onCheckedChange={(checked) => handleChecklistChange(selectedEmployee.id, category.id, item.id, !!checked)}
+                                        />
+                                        <label htmlFor={`${selectedEmployee.id}-${item.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                            {item.label}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+              </Accordion>
             </div>
           )}
         </DialogContent>
@@ -415,5 +454,3 @@ export default function EmployeesPage() {
     </>
   );
 }
-
-    

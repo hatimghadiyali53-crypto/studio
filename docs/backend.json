@@ -29,16 +29,27 @@
             "enum": ["Coomera", "Ipswich", "Northlakes"]
         },
         "onboardingChecklist": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": { "type": "string" },
-                    "label": { "type": "string" },
-                    "completed": { "type": "boolean" }
-                },
-                "required": ["id", "label", "completed"]
-            }
+          "type": "array",
+          "items": {
+              "type": "object",
+              "properties": {
+                  "id": { "type": "string" },
+                  "title": { "type": "string" },
+                  "items": {
+                      "type": "array",
+                      "items": {
+                          "type": "object",
+                          "properties": {
+                              "id": { "type": "string" },
+                              "label": { "type": "string" },
+                              "completed": { "type": "boolean" }
+                          },
+                          "required": ["id", "label", "completed"]
+                      }
+                  }
+              },
+              "required": ["id", "title", "items"]
+          }
         }
       },
       "required": [
@@ -178,5 +189,3 @@
     }
   }
 }
-
-    
