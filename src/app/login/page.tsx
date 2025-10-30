@@ -164,7 +164,7 @@ export default function LoginPage() {
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="manager@paradise.scoop"
+                        placeholder="hatimghadiyali53@gmail.com"
                         {...field}
                       />
                     </FormControl>
@@ -215,5 +215,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
