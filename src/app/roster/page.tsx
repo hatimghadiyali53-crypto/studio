@@ -26,6 +26,11 @@ import { collection, doc } from "firebase/firestore";
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
+type RosterViewData = {
+    employee: Employee;
+    schedule: RosterShift;
+}
+
 export default function RosterPage() {
   const [isEditing, setIsEditing] = useState(false);
   
@@ -45,35 +50,36 @@ export default function RosterPage() {
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
   const { data: roster, isLoading: rosterLoading } = useCollection<RosterShift>(rosterQuery);
   
-  // Local state to manage edits before saving
-  const [localRoster, setLocalRoster] = useState<RosterShift[] | null>(null);
+  const [localRoster, setLocalRoster] = useState<RosterViewData[] | null>(null);
+
+  const combinedRosterData: RosterViewData[] | null = useMemo(() => {
+    if (!employees || !roster) return null;
+
+    const rosterMap = new Map(roster.map(r => [r.employeeId, r]));
+
+    return employees
+      .map(emp => {
+        const schedule = rosterMap.get(emp.id);
+        return schedule ? { employee: emp, schedule } : null;
+      })
+      .filter((item): item is RosterViewData => item !== null)
+      .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
+  }, [employees, roster]);
+
 
   useEffect(() => {
-    if (roster) {
-      // Create a deep copy for local editing to avoid mutating the original state
-      setLocalRoster(JSON.parse(JSON.stringify(roster)));
+    if (combinedRosterData) {
+      setLocalRoster(JSON.parse(JSON.stringify(combinedRosterData)));
     }
-  }, [roster]);
-
-  const employeeMap = useMemo(() => {
-    if (!employees) return {};
-    return employees.reduce((acc, emp) => {
-      acc[emp.id] = emp;
-      return acc;
-    }, {} as Record<string, Employee>);
-  }, [employees]);
+  }, [combinedRosterData]);
   
   const handleEditToggle = async () => {
     if (isEditing && localRoster && firestore) {
-        // "Save" changes by updating each document in Firestore
-        const promises = localRoster.map(schedule => {
+        const promises = localRoster.map(({ schedule }) => {
             const rosterDocRef = doc(firestore, 'roster', schedule.id);
             return updateDocumentNonBlocking(rosterDocRef, { shifts: schedule.shifts });
         });
         await Promise.all(promises);
-    } else if (!isEditing && roster) {
-        // Enter edit mode, copy firestore data to local state
-        setLocalRoster(JSON.parse(JSON.stringify(roster)));
     }
     setIsEditing(!isEditing);
   };
@@ -81,35 +87,35 @@ export default function RosterPage() {
   const handleShiftChange = (employeeId: string, day: string, value: string) => {
     setLocalRoster(currentRoster => {
       if (!currentRoster) return null;
-      return currentRoster.map(schedule => {
-        if (schedule.employeeId === employeeId) {
+      return currentRoster.map(item => {
+        if (item.employee.id === employeeId) {
           return {
-            ...schedule,
-            shifts: {
-              ...schedule.shifts,
-              [day]: value,
-            },
+            ...item,
+            schedule: {
+                ...item.schedule,
+                shifts: {
+                    ...item.schedule.shifts,
+                    [day]: value,
+                }
+            }
           };
         }
-        return schedule;
+        return item;
       });
     });
   };
   
   const handleExport = () => {
-    if(!roster) return;
+    if(!combinedRosterData) return;
     const headers = ["Employee", ...weekDays];
     const csvRows = [headers.join(",")];
 
-    roster.forEach(schedule => {
-      const employee = employeeMap[schedule.employeeId];
-      if (employee) {
+    combinedRosterData.forEach(({ employee, schedule }) => {
         const row = [
           `"${employee.name}"`,
           ...weekDays.map(day => `"${schedule.shifts[day] || 'OFF'}"`)
         ];
         csvRows.push(row.join(","));
-      }
     });
 
     const csvString = csvRows.join("\n");
@@ -124,16 +130,17 @@ export default function RosterPage() {
     document.body.removeChild(link);
   };
   
-  const displayRoster = isEditing ? localRoster : roster;
+  const displayRoster = isEditing ? localRoster : combinedRosterData;
+  const isLoading = employeesLoading || rosterLoading;
 
   return (
     <>
       <PageHeader title="Weekly Roster" description="View and manage the employee schedule for the current week.">
-        <Button variant="outline" onClick={handleEditToggle} disabled={!localRoster}>
+        <Button variant="outline" onClick={handleEditToggle} disabled={isLoading || !displayRoster}>
           {isEditing ? <Save className="mr-2 h-4 w-4" /> : <Pencil className="mr-2 h-4 w-4" />}
           {isEditing ? "Save Roster" : "Edit Roster"}
         </Button>
-        <Button onClick={handleExport} disabled={!roster || roster.length === 0}>
+        <Button onClick={handleExport} disabled={isLoading || !displayRoster || displayRoster.length === 0}>
           <Download className="mr-2 h-4 w-4" />
           Export
         </Button>
@@ -141,12 +148,10 @@ export default function RosterPage() {
       
       {/* Mobile View - Cards */}
       <div className="md:hidden space-y-4">
-        {(rosterLoading || employeesLoading) && Array.from({length: 3}).map((_, i) => (
+        {isLoading && Array.from({length: 3}).map((_, i) => (
              <Card key={i}><CardContent className="p-4"><Skeleton className="h-32 w-full" /></CardContent></Card>
         ))}
-        {!rosterLoading && !employeesLoading && displayRoster?.map(schedule => {
-            const employee = employeeMap[schedule.employeeId];
-            if (!employee) return null;
+        {!isLoading && displayRoster?.map(({ employee, schedule }) => {
             return (
                 <Card key={employee.id}>
                     <CardContent className="p-4">
@@ -166,7 +171,7 @@ export default function RosterPage() {
                                      {isEditing ? (
                                         <Input
                                             value={schedule.shifts[day] || ''}
-                                            onChange={(e) => handleShiftChange(schedule.employeeId, day, e.target.value)}
+                                            onChange={(e) => handleShiftChange(employee.id, day, e.target.value)}
                                             className="h-8 w-32"
                                             placeholder="e.g., 9AM-5PM"
                                         />
@@ -199,16 +204,13 @@ export default function RosterPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(rosterLoading || employeesLoading) && Array.from({length: 5}).map((_, i) => (
+              {isLoading && Array.from({length: 5}).map((_, i) => (
                 <TableRow key={i}>
                     <TableCell><Skeleton className="h-10 w-48" /></TableCell>
                     {weekDays.map(day => <TableCell key={day}><Skeleton className="h-8 w-full" /></TableCell>)}
                 </TableRow>
               ))}
-              {!rosterLoading && !employeesLoading && displayRoster?.map((schedule: RosterShift) => {
-                const employee = employeeMap[schedule.employeeId];
-                if (!employee) return null;
-
+              {!isLoading && displayRoster?.map(({ employee, schedule }) => {
                 return (
                   <TableRow key={employee.id}>
                     <TableCell>
@@ -243,10 +245,10 @@ export default function RosterPage() {
                   </TableRow>
                 );
               })}
-               {!rosterLoading && (!displayRoster || displayRoster.length === 0) && (
+               {!isLoading && (!displayRoster || displayRoster.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={weekDays.length + 1} className="h-24 text-center">
-                    No roster data found.
+                    No employees found on the roster. Add one from the Employees page.
                   </TableCell>
                 </TableRow>
               )}
@@ -257,5 +259,3 @@ export default function RosterPage() {
     </>
   );
 }
-
-    
