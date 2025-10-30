@@ -1,13 +1,18 @@
+
 "use server";
 
 import {
   suggestShiftSwap,
   type ShiftSwapInput,
 } from "@/ai/flows/shift-swap-suggestion";
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
 
-// A mock list of all employee IDs for the AI to consider.
-// In a real app, this would come from a database.
-const ALL_EMPLOYEE_IDS = ["emp-1", "emp-2", "emp-3", "emp-4", "emp-5", "emp-6"];
+if (getApps().length === 0) {
+    initializeApp();
+}
+
+const db = getFirestore();
 
 // This is a mock implementation of the `getEmployeeProfile` tool's behavior.
 // Because we can't modify the AI flow, we can influence the tool's output here
@@ -63,3 +68,5 @@ export async function getShiftSwapSuggestions(input: ShiftSwapInput) {
     return { success: false, error: "Failed to get suggestions from AI." };
   }
 }
+
+    

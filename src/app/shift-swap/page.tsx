@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { z } from "zod";
 import { useForm, useFormState } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,7 +50,6 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { employees } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { getShiftSwapSuggestions } from "./actions";
 import {
@@ -58,6 +57,9 @@ import {
   type ShiftSwapSuggestion,
 } from "@/ai/flows/shift-swap-suggestion";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from 'firebase/firestore';
+import type { Employee } from "@/lib/types";
 
 const formSchema = z.object({
   requestingEmployeeId: z.string({
@@ -78,6 +80,11 @@ export default function ShiftSwapPage() {
   const [suggestions, setSuggestions] = useState<ShiftSwapOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<ShiftSwapSuggestion | null>(null);
+
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const employeesQuery = useMemoFirebase(() => firestore && user ? collection(firestore, 'employees') : null, [firestore, user]);
+  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
 
   const { toast } = useToast();
 
@@ -146,6 +153,7 @@ export default function ShiftSwapPage() {
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
+                        disabled={employeesLoading}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -153,7 +161,7 @@ export default function ShiftSwapPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {employees.map((emp) => (
+                          {employees?.map((emp) => (
                             <SelectItem key={emp.id} value={emp.id}>
                               {emp.name}
                             </SelectItem>
@@ -238,7 +246,7 @@ export default function ShiftSwapPage() {
                 />
               </CardContent>
               <CardFooter>
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoading || employeesLoading}>
                   {isLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -327,3 +335,5 @@ export default function ShiftSwapPage() {
     </>
   );
 }
+
+    
