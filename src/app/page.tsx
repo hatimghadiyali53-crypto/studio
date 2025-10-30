@@ -61,9 +61,18 @@ export default function DashboardPage() {
   const router = useRouter();
   const firestore = useFirestore();
 
-  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
-  const tasksQuery = useMemoFirebase(() => collection(firestore, 'tasks'), [firestore]);
-  const inventoryQuery = useMemoFirebase(() => collection(firestore, 'inventoryItems'), [firestore]);
+  const employeesQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'employees');
+  }, [firestore, user]);
+  const tasksQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'tasks');
+  }, [firestore, user]);
+  const inventoryQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, 'inventoryItems');
+  }, [firestore, user]);
 
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
   const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksQuery);

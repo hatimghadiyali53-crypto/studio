@@ -54,7 +54,9 @@ import { cn } from "@/lib/utils";
 import type { Employee, Task } from "@/lib/types";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { employees as staticEmployees, tasks as staticTasks } from '@/lib/data';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useUser, updateDocumentNonBlocking } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
+
 
 const formSchema = z.object({
     name: z.string().min(3, "Task name is too short"),
@@ -69,10 +71,21 @@ export default function TasksPage() {
     const [open, setOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     
-    const [employees, setEmployees] = useState<Employee[]>(staticEmployees);
-    const [tasks, setTasks] = useState<Task[]>(staticTasks);
-    const employeesLoading = false;
-    const tasksLoading = false;
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const employeesQuery = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return collection(firestore, 'employees');
+    }, [firestore, user]);
+
+    const tasksQuery = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return collection(firestore, 'tasks');
+    }, [firestore, user]);
+
+    const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
+    const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksQuery);
 
     const employeeMap = useMemo(() => {
         if (!employees) return {};
@@ -88,7 +101,7 @@ export default function TasksPage() {
         if (!tasks) return [];
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         const endIndex = startIndex + ITEMS_PER_PAGE;
-        return tasks.slice(startIndex, endIndex);
+        return [...tasks].sort((a,b) => new Date(b.dueDate as string).getTime() - new Date(a.dueDate as string).getTime()).slice(startIndex, endIndex);
     }, [tasks, currentPage]);
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -99,15 +112,15 @@ export default function TasksPage() {
     });
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
-        const newTask: Task = {
-            id: `task-${Date.now()}`,
+        if (!tasksQuery) return;
+        const newTask = {
             name: values.name,
             assignedTo: values.assignedTo,
             dueDate: format(values.dueDate, "yyyy-MM-dd"),
             category: values.category,
             status: 'Pending'
         };
-        setTasks(prev => [...prev, newTask]);
+        addDocumentNonBlocking(tasksQuery, newTask);
         form.reset();
         setOpen(false);
     }
@@ -121,8 +134,10 @@ export default function TasksPage() {
     };
 
     const handleToggleStatus = async (task: Task) => {
+        if (!firestore) return;
         const newStatus = task.status === 'Pending' ? 'Completed' : 'Pending';
-        setTasks(currentTasks => currentTasks.map(t => t.id === task.id ? {...t, status: newStatus} : t));
+        const taskRef = doc(firestore, 'tasks', task.id);
+        updateDocumentNonBlocking(taskRef, { status: newStatus });
     }
 
   return (
@@ -262,7 +277,7 @@ export default function TasksPage() {
             </TableRow>
             </TableHeader>
             <TableBody>
-            {tasksLoading && Array.from({length: 5}).map((_, i) => (
+            {(tasksLoading || employeesLoading) && Array.from({length: 5}).map((_, i) => (
                 <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                     <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
@@ -325,29 +340,31 @@ export default function TasksPage() {
             </TableBody>
         </Table>
         </CardContent>
-        <CardFooter className="flex items-center justify-between pt-6">
-            <div className="text-sm text-muted-foreground">
-                Showing page {currentPage} of {totalPages}
-            </div>
-            <div className="flex items-center gap-2">
-                <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                >
-                Previous
-                </Button>
-                <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                >
-                Next
-                </Button>
-            </div>
-        </CardFooter>
+        {tasks && tasks.length > 0 && totalPages > 1 && (
+          <CardFooter className="flex items-center justify-between pt-6">
+              <div className="text-sm text-muted-foreground">
+                  Showing page {currentPage} of {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                  <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  >
+                  Previous
+                  </Button>
+                  <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  >
+                  Next
+                  </Button>
+              </div>
+          </CardFooter>
+        )}
       </Card>
     </>
   );
