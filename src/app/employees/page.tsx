@@ -34,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,9 +46,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useUser, updateDocumentNonBlocking } from "@/firebase";
-import { collection, doc } from 'firebase/firestore';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useUser } from "@/firebase";
+import { collection } from 'firebase/firestore';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -97,8 +95,6 @@ const ITEMS_PER_PAGE = 5;
 
 export default function EmployeesPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   const { user } = useUser();
@@ -106,9 +102,9 @@ export default function EmployeesPage() {
   const employeesCollection = useMemoFirebase(() => firestore && user ? collection(firestore, 'employees') : null, [firestore, user]);
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
   
+  const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
 
   const paginatedEmployees = useMemo(() => {
     if (!employees) return [];
@@ -142,45 +138,6 @@ export default function EmployeesPage() {
     form.reset();
     setAddDialogOpen(false);
   }
-
-  const handleViewClick = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setViewDialogOpen(true);
-  };
-
-  const handleChecklistChange = (categoryId: string, itemId: string, completed: boolean) => {
-    if (!firestore || !selectedEmployee) return;
-
-    const updatedChecklist = selectedEmployee.onboardingChecklist.map(category => {
-      if (category.id === categoryId) {
-        return {
-          ...category,
-          items: category.items.map(item =>
-            item.id === itemId ? { ...item, completed } : item
-          ),
-        };
-      }
-      return category;
-    });
-
-    const allCompleted = updatedChecklist.every(category => category.items.every(item => item.completed));
-    const newStatus = allCompleted ? 'Completed' : 'Pending';
-
-    const updatedEmployee: Employee = {
-      ...selectedEmployee,
-      onboardingChecklist: updatedChecklist,
-      onboardingStatus: newStatus,
-    };
-
-    setSelectedEmployee(updatedEmployee);
-
-    const employeeDocRef = doc(firestore, 'employees', selectedEmployee.id);
-    updateDocumentNonBlocking(employeeDocRef, {
-      onboardingChecklist: updatedChecklist,
-      onboardingStatus: newStatus
-    });
-  };
-
 
   const handlePreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
@@ -298,7 +255,6 @@ export default function EmployeesPage() {
                 <TableHead>Role</TableHead>
                 <TableHead>Store</TableHead>
                 <TableHead>Onboarding Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -316,7 +272,6 @@ export default function EmployeesPage() {
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-8 w-16" /></TableCell>
                 </TableRow>
               ))}
               {!employeesLoading && paginatedEmployees?.map((employee) => (
@@ -348,16 +303,11 @@ export default function EmployeesPage() {
                       {employee.onboardingStatus}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => handleViewClick(employee)}>
-                      View
-                    </Button>
-                  </TableCell>
                 </TableRow>
               ))}
               {!employeesLoading && employees?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     No employees found.
                   </TableCell>
                 </TableRow>
@@ -391,61 +341,8 @@ export default function EmployeesPage() {
           </CardFooter>
         )}
       </Card>
-
-      {selectedEmployee && (
-        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Employee Onboarding</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarFallback>{selectedEmployee.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-xl font-semibold">{selectedEmployee.name}</h3>
-                  <p className="text-muted-foreground">{selectedEmployee.email}</p>
-                </div>
-                <Badge
-                  variant={
-                    selectedEmployee.onboardingStatus === "Completed"
-                      ? "default"
-                      : "secondary"
-                  }
-                  className={selectedEmployee.onboardingStatus === "Completed" ? "ml-auto h-fit bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300" : "ml-auto h-fit"}
-                >
-                  {selectedEmployee.onboardingStatus}
-                </Badge>
-              </div>
-
-              <Accordion type="multiple" defaultValue={["shift-1"]} className="w-full">
-                {selectedEmployee.onboardingChecklist?.map(category => (
-                  <AccordionItem value={category.id} key={category.id}>
-                    <AccordionTrigger>{category.title}</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3 p-2">
-                        {category.items.map(item => (
-                          <div key={item.id} className="flex items-center space-x-3">
-                            <Checkbox
-                              id={`${selectedEmployee.id}-${item.id}`}
-                              checked={item.completed}
-                              onCheckedChange={(checked) => handleChecklistChange(category.id, item.id, !!checked)}
-                            />
-                            <label htmlFor={`${selectedEmployee.id}-${item.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                              {item.label}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 }
+
+    
