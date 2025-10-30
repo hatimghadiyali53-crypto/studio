@@ -14,6 +14,7 @@ import {
   Send,
   Sparkles,
   User,
+  Construction,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -246,12 +247,8 @@ export default function ShiftSwapPage() {
                 />
               </CardContent>
               <CardFooter>
-                <Button type="submit" disabled={isLoading || employeesLoading}>
-                  {isLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
+                <Button type="submit" disabled={true}>
+                  <Send className="mr-2 h-4 w-4" />
                   Find Suggestions
                 </Button>
               </CardFooter>
@@ -269,66 +266,13 @@ export default function ShiftSwapPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col items-center justify-center text-center">
-            {isLoading && (
-              <div className="space-y-2">
-                <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
+            <Construction className="w-16 h-16 text-muted-foreground" />
+            <div className="text-center mt-4">
+                <h3 className="text-lg font-semibold">Feature Coming Soon!</h3>
                 <p className="text-muted-foreground">
-                  Analyzing schedules...
+                    Our AI-powered shift swap suggestion is under development.
                 </p>
-              </div>
-            )}
-            {!isLoading && !suggestions && !selectedSuggestion && (
-              <div className="space-y-2">
-                <CircleDashed className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  Suggestions will appear here once you submit a request.
-                </p>
-              </div>
-            )}
-            {suggestions && !selectedSuggestion && (
-              <div className="w-full space-y-4">
-                {suggestions.suggestions.map((s) => (
-                  <div
-                    key={s.suggestedEmployeeId}
-                    className="rounded-lg border p-4 text-left"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold">{s.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Suitability: {s.suitabilityScore}/100
-                        </p>
-                      </div>
-                       <Button size="sm" onClick={() => setSelectedSuggestion(s)}>Confirm</Button>
-                    </div>
-                    <p className="mt-2 text-sm">{s.reason}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-            {selectedSuggestion && (
-                 <div className="w-full text-left space-y-4">
-                    <h3 className="text-lg font-semibold">Finalize Swap with {selectedSuggestion.name}</h3>
-                    <p className="text-sm text-muted-foreground">Please complete the following procedures to finalize the shift swap.</p>
-                    <div className="space-y-3 rounded-lg border p-4">
-                        {procedureItems.map(item => (
-                             <div key={item.id} className="flex items-center space-x-3">
-                                <Checkbox id={item.id} />
-                                <label htmlFor={item.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    {item.label}
-                                </label>
-                            </div>
-                        ))}
-                    </div>
-                     <div className="flex gap-2">
-                        <Button onClick={handleConfirmSwap}>
-                            <Check className="mr-2 h-4 w-4" />
-                            Complete Swap
-                        </Button>
-                        <Button variant="ghost" onClick={() => setSelectedSuggestion(null)}>Back</Button>
-                     </div>
-                 </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       </div>

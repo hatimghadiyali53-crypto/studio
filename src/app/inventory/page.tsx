@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import type { InventoryItem } from "@/lib/types";
-import { Plus, Minus, Wand2, Calculator, PlusCircle } from "lucide-react";
+import { Plus, Minus, Wand2, PlusCircle, Construction } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, useUser } from "@/firebase";
@@ -394,94 +394,23 @@ export default function InventoryPage() {
           </Card>
         </TabsContent>
         <TabsContent value="predict">
-          <Card>
-            <CardHeader>
-              <CardTitle>Stock Requirement Prediction</CardTitle>
-              <CardDescription>
-                Analyze past data to predict future needs and minimize waste.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex justify-start">
-                <Button>
-                  <Wand2 className="mr-2 h-4 w-4" />
-                  Predict Requirements
-                </Button>
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Calculator className="h-5 w-5 text-muted-foreground" />
-                      Ideal Order Amount
-                    </CardTitle>
-                    <CardDescription>
-                      Suggested quantities for your next supply order.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex justify-between">
-                        <span>Vanilla Bean:</span>{" "}
-                        <span className="font-medium">10 Tubs</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span>Chocolate Fudge:</span>{" "}
-                        <span className="font-medium">12 Tubs</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span>Strawberry Bliss:</span>{" "}
-                        <span className="font-medium">8 Tubs</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span>Waffle Cones:</span>{" "}
-                        <span className="font-medium">15 Boxes</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Calculator className="h-5 w-5 text-muted-foreground" />
-                      Tub Variance
-                    </CardTitle>
-                    <CardDescription>
-                      Calculated difference between expected and actual usage.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex justify-between">
-                        <span>Vanilla Bean:</span>{" "}
-                        <span className="font-medium text-green-600">
-                          +0.2 Tubs
-                        </span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span>Chocolate Fudge:</span>{" "}
-                        <span className="font-medium text-red-600">
-                          -0.5 Tubs
-                        </span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span>Mint Chip:</span>{" "}
-                        <span className="font-medium text-green-600">
-                          +0.1 Tubs
-                        </span>
-                      </li>
-                    </ul>
-                    <p className="mt-4 text-xs text-muted-foreground">
-                      Positive values indicate less usage than expected (good),
-                      negative values indicate more usage (potential
-                      over-scooping).
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+                <CardHeader>
+                <CardTitle>Stock Requirement Prediction</CardTitle>
+                <CardDescription>
+                    Analyze past data to predict future needs and minimize waste.
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center justify-center space-y-4 min-h-[400px]">
+                    <Construction className="w-16 h-16 text-muted-foreground" />
+                    <div className="text-center">
+                        <h3 className="text-lg font-semibold">Feature Coming Soon!</h3>
+                        <p className="text-muted-foreground">
+                            Our AI-powered inventory prediction is under development.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
         </TabsContent>
       </Tabs>
       <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>

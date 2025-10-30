@@ -4,6 +4,7 @@
 import {
   suggestShiftSwap,
   type ShiftSwapInput,
+  ShiftSwapOutput
 } from "@/ai/flows/shift-swap-suggestion";
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
@@ -27,42 +28,15 @@ const MOCK_PROFILES: any = {
 };
 
 
-export async function getShiftSwapSuggestions(input: ShiftSwapInput) {
+export async function getShiftSwapSuggestions(input: ShiftSwapInput): Promise<{ success: boolean, data?: ShiftSwapOutput, error?: string }> {
   try {
-    // The AI flow is designed to call the `getEmployeeProfile` tool.
-    // Since we don't have a real database, the tool returns placeholder data.
-    // The AI will generate suggestions based on that placeholder data.
-    // In a real application, the `getEmployeeProfile` tool would query a database
-    // and the AI would use that real data to make suggestions.
+    // This feature is currently under development. Returning an empty success response.
+    // In a real application, you would call the AI flow:
+    // const suggestions = await suggestShiftSwap(input);
     
-    const suggestions = await suggestShiftSwap(input);
-
-    // For demonstration, let's manually create some plausible suggestions
-    // to show what the UI would look like with real AI output.
-    const mockSuggestions = {
-      suggestions: [
-        {
-          suggestedEmployeeId: "emp-3",
-          name: "Charlie",
-          suitabilityScore: 95,
-          reason: "Fully qualified and has open availability during the requested shift time. Reliable and has covered shifts before.",
-        },
-        {
-          suggestedEmployeeId: "emp-6",
-          name: "Frank",
-          suitabilityScore: 80,
-          reason: "Has the necessary qualifications. Availability might conflict with another task but can be moved.",
-        },
-        {
-          suggestedEmployeeId: "emp-5",
-          name: "Eve",
-          suitabilityScore: 70,
-          reason: "Available and has 'Ice Cream Prep' qualification, but lacks 'Customer Service' experience for a busy shift.",
-        },
-      ],
-    };
-
-    return { success: true, data: mockSuggestions };
+    // For now, we return a structure that indicates success but contains no suggestions,
+    // as the UI will show a "coming soon" message.
+    return { success: true, data: { suggestions: [] } };
   } catch (error) {
     console.error(error);
     return { success: false, error: "Failed to get suggestions from AI." };
