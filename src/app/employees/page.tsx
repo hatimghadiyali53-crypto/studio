@@ -110,10 +110,13 @@ export default function EmployeesPage() {
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
 
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+
   const paginatedEmployees = useMemo(() => {
     if (!employees) return [];
     return [...employees].sort((a,b) => a.name.localeCompare(b.name)).slice(startIndex, endIndex);
-  }, [employees, currentPage]);
+  }, [employees, currentPage, startIndex, endIndex]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -191,9 +194,6 @@ export default function EmployeesPage() {
       onboardingStatus: newStatus
     });
   };
-
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
 
   return (
     <>
