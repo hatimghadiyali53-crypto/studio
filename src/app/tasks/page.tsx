@@ -2,8 +2,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Table,
   TableBody,
@@ -56,6 +54,7 @@ import { cn } from "@/lib/utils";
 import type { Employee, Task } from "@/lib/types";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { employees as staticEmployees, tasks as staticTasks } from '@/lib/data';
 
 const formSchema = z.object({
     name: z.string().min(3, "Task name is too short"),
@@ -69,13 +68,11 @@ const ITEMS_PER_PAGE = 5;
 export default function TasksPage() {
     const [open, setOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-    const firestore = useFirestore();
-
-    const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
-    const tasksQuery = useMemoFirebase(() => collection(firestore, 'tasks'), [firestore]);
-
-    const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
-    const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksQuery);
+    
+    const [employees, setEmployees] = useState<Employee[]>(staticEmployees);
+    const [tasks, setTasks] = useState<Task[]>(staticTasks);
+    const employeesLoading = false;
+    const tasksLoading = false;
 
     const employeeMap = useMemo(() => {
         if (!employees) return {};
@@ -102,19 +99,17 @@ export default function TasksPage() {
     });
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
-        const newTask: Omit<Task, 'id' | 'status'> = {
+        const newTask: Task = {
+            id: `task-${Date.now()}`,
             name: values.name,
             assignedTo: values.assignedTo,
             dueDate: format(values.dueDate, "yyyy-MM-dd"),
             category: values.category,
+            status: 'Pending'
         };
-        try {
-            await addDoc(collection(firestore, 'tasks'), { ...newTask, status: 'Pending'});
-            form.reset();
-            setOpen(false);
-        } catch (error) {
-            console.error("Error adding task: ", error);
-        }
+        setTasks(prev => [...prev, newTask]);
+        form.reset();
+        setOpen(false);
     }
     
     const handlePreviousPage = () => {
@@ -126,13 +121,8 @@ export default function TasksPage() {
     };
 
     const handleToggleStatus = async (task: Task) => {
-        const taskRef = doc(firestore, 'tasks', task.id);
         const newStatus = task.status === 'Pending' ? 'Completed' : 'Pending';
-        try {
-            await updateDoc(taskRef, { status: newStatus });
-        } catch (error) {
-            console.error("Error updating task status: ", error);
-        }
+        setTasks(currentTasks => currentTasks.map(t => t.id === task.id ? {...t, status: newStatus} : t));
     }
 
   return (
@@ -284,7 +274,7 @@ export default function TasksPage() {
             ))}
             {!tasksLoading && paginatedTasks.map((task) => {
                 const employee = employeeMap[task.assignedTo];
-                const dueDate = task.dueDate instanceof Date ? format(task.dueDate, "yyyy-MM-dd") : (typeof task.dueDate === 'string' ? task.dueDate : (task.dueDate as any).toDate().toLocaleDateString());
+                const dueDate = typeof task.dueDate === 'string' ? task.dueDate : format(task.dueDate as Date, "yyyy-MM-dd");
                 return (
                 <TableRow key={task.id}>
                     <TableCell className="font-medium">

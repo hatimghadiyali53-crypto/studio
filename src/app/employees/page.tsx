@@ -2,8 +2,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { collection, addDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Table,
   TableBody,
@@ -50,6 +48,7 @@ import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { employees as staticEmployees } from '@/lib/data';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -71,10 +70,8 @@ export default function EmployeesPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const firestore = useFirestore();
-
-  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
-  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
+  const [employees, setEmployees] = useState<Employee[]>(staticEmployees);
+  const employeesLoading = false;
 
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedEmployees = useMemo(() => {
@@ -95,19 +92,16 @@ export default function EmployeesPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const newEmployee: Omit<Employee, 'id'> = {
+    const newEmployee: Employee = {
+        id: `emp-${Date.now()}`,
         name: values.name,
         email: values.email,
         role: values.role,
         onboardingStatus: "Pending",
     };
-    try {
-      await addDoc(collection(firestore, 'employees'), newEmployee);
-      form.reset();
-      setAddDialogOpen(false);
-    } catch (error) {
-      console.error("Error adding employee: ", error);
-    }
+    setEmployees(prev => [...prev, newEmployee]);
+    form.reset();
+    setAddDialogOpen(false);
   }
 
   const handleViewClick = (employee: Employee) => {

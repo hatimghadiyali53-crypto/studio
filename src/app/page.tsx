@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { Task, InventoryItem } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { employees, tasks, inventory } from '@/lib/data';
 
 const recentActivities = [
   {
@@ -59,15 +60,10 @@ const recentActivities = [
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
-  const firestore = useFirestore();
-
-  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
-  const tasksQuery = useMemoFirebase(() => collection(firestore, 'tasks'), [firestore]);
-  const inventoryQuery = useMemoFirebase(() => collection(firestore, 'inventoryItems'), [firestore]);
-
-  const { data: employees, isLoading: employeesLoading } = useCollection(employeesQuery);
-  const { data: tasks, isLoading: tasksLoading } = useCollection<Task>(tasksQuery);
-  const { data: inventory, isLoading: inventoryLoading } = useCollection<InventoryItem>(inventoryQuery);
+  
+  const employeesLoading = false;
+  const tasksLoading = false;
+  const inventoryLoading = false;
 
   useEffect(() => {
     if (!isUserLoading && !user) {

@@ -5,8 +5,6 @@ import { useState, useMemo } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { collection, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Table,
   TableBody,
@@ -61,6 +59,7 @@ import type { InventoryItem } from "@/lib/types";
 import { Plus, Minus, Wand2, Calculator, PlusCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { inventory as staticInventory } from '@/lib/data';
 
 const formSchema = z.object({
   name: z.string().min(2, "Item name must be at least 2 characters."),
@@ -80,9 +79,8 @@ export default function InventoryPage() {
   const [stockQuantity, setStockQuantity] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const firestore = useFirestore();
-  const inventoryQuery = useMemoFirebase(() => collection(firestore, 'inventoryItems'), [firestore]);
-  const { data: inventory, isLoading: inventoryLoading } = useCollection<InventoryItem>(inventoryQuery);
+  const [inventory, setInventory] = useState<InventoryItem[]>(staticInventory);
+  const inventoryLoading = false;
 
   const totalPages = Math.ceil((inventory?.length ?? 0) / ITEMS_PER_PAGE);
   const paginatedInventory = useMemo(() => {
@@ -104,16 +102,13 @@ export default function InventoryPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const newItem: Omit<InventoryItem, 'id'> = {
+    const newItem: InventoryItem = {
+      id: `item-${Date.now()}`,
       ...values,
     };
-    try {
-        await addDoc(collection(firestore, 'inventoryItems'), newItem);
-        form.reset();
-        setAddDialogOpen(false);
-    } catch(error) {
-        console.error("Error adding inventory item:", error);
-    }
+    setInventory(prev => [...prev, newItem]);
+    form.reset();
+    setAddDialogOpen(false);
   }
 
   const handleStockActionClick = (item: InventoryItem, action: "add" | "subtract") => {
@@ -126,16 +121,12 @@ export default function InventoryPage() {
   const handleConfirmStockChange = async () => {
     if (!selectedItem || !stockAction) return;
 
-    const itemRef = doc(firestore, 'inventoryItems', selectedItem.id);
     const changeAmount = stockAction === 'add' ? stockQuantity : -stockQuantity;
-    
-    try {
-        await updateDoc(itemRef, {
-            inStock: increment(changeAmount)
-        });
-    } catch (error) {
-        console.error("Error updating stock:", error);
-    }
+    setInventory(currentInv => currentInv.map(item => 
+        item.id === selectedItem.id 
+        ? { ...item, inStock: item.inStock + changeAmount }
+        : item
+    ));
 
     setStockDialogOpen(false);
     setSelectedItem(null);

@@ -1,3 +1,4 @@
+
 // This file is no longer used for providing data to the application.
 // All data is now fetched from Firestore.
 // It is kept for reference or future seeding scripts.

@@ -1,9 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
-import { collection, doc, updateDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,27 +21,26 @@ import { Input } from "@/components/ui/input";
 import { Download, Pencil, Save } from "lucide-react";
 import type { Employee, RosterShift } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { employees as staticEmployees, roster as staticRoster } from '@/lib/data';
 
 const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 export default function RosterPage() {
   const [isEditing, setIsEditing] = useState(false);
-  const firestore = useFirestore();
-
-  const employeesQuery = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
-  const rosterQuery = useMemoFirebase(() => collection(firestore, 'roster'), [firestore]);
-
-  const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesQuery);
-  const { data: roster, isLoading: rosterLoading } = useCollection<RosterShift>(rosterQuery);
-
-  // Local state to manage edits before saving to Firestore
+  
+  const [employees, setEmployees] = useState<Employee[]>(staticEmployees);
+  const [roster, setRoster] = useState<RosterShift[]>(staticRoster);
+  const employeesLoading = false;
+  const rosterLoading = false;
+  
+  // Local state to manage edits before saving
   const [localRoster, setLocalRoster] = useState<RosterShift[] | null>(null);
 
-  useState(() => {
+  useEffect(() => {
     if (roster) {
       setLocalRoster(roster);
     }
-  });
+  }, [roster]);
 
   const employeeMap = useMemo(() => {
     if (!employees) return {};
@@ -55,12 +52,8 @@ export default function RosterPage() {
   
   const handleEditToggle = async () => {
     if (isEditing && localRoster) {
-        // Save changes to Firestore
-        const promises = localRoster.map(schedule => {
-            const docRef = doc(firestore, 'roster', schedule.id);
-            return updateDoc(docRef, { shifts: schedule.shifts });
-        });
-        await Promise.all(promises);
+        // "Save" changes by updating the main roster state
+        setRoster(localRoster);
     } else if (!isEditing && roster) {
         // Enter edit mode, copy firestore data to local state
         setLocalRoster(JSON.parse(JSON.stringify(roster)));
