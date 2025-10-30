@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +46,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useUser, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from 'firebase/firestore';
@@ -138,10 +137,7 @@ export default function EmployeesPage() {
     }));
 
     const newEmployee = {
-        name: values.name,
-        email: values.email,
-        role: values.role,
-        store: values.store,
+        ...values,
         onboardingStatus: "Pending" as const,
         onboardingChecklist: fullChecklist,
     };
@@ -163,7 +159,7 @@ export default function EmployeesPage() {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
-  const handleChecklistChange = (employeeId: string, categoryId: string, itemId: string, completed: boolean) => {
+  const handleChecklistChange = (categoryId: string, itemId: string, completed: boolean) => {
     if (!firestore || !selectedEmployee) return;
 
     const updatedChecklist = selectedEmployee.onboardingChecklist.map(category => {
@@ -189,7 +185,7 @@ export default function EmployeesPage() {
     });
     
     // Update the document in Firestore
-    const employeeDocRef = doc(firestore, 'employees', employeeId);
+    const employeeDocRef = doc(firestore, 'employees', selectedEmployee.id);
     updateDocumentNonBlocking(employeeDocRef, { 
       onboardingChecklist: updatedChecklist,
       onboardingStatus: newStatus
@@ -436,7 +432,7 @@ export default function EmployeesPage() {
                                         <Checkbox 
                                             id={`${selectedEmployee.id}-${item.id}`} 
                                             checked={item.completed}
-                                            onCheckedChange={(checked) => handleChecklistChange(selectedEmployee.id, category.id, item.id, !!checked)}
+                                            onCheckedChange={(checked) => handleChecklistChange(category.id, item.id, !!checked)}
                                         />
                                         <label htmlFor={`${selectedEmployee.id}-${item.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                             {item.label}
@@ -454,4 +450,5 @@ export default function EmployeesPage() {
       </Dialog>
     </>
   );
-}
+
+    
