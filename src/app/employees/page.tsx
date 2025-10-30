@@ -56,6 +56,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email(),
   role: z.enum(["Scooper", "Shift Lead", "Manager"]),
+  store: z.enum(["Coomera", "Ipswich", "Northlakes"]),
 });
 
 const onboardingQuestions = [
@@ -74,7 +75,7 @@ export default function EmployeesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   
   const firestore = useFirestore();
-  const employeesCollection = useMemoFirebase(() => collection(firestore, 'employees'), [firestore]);
+  const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, 'employees') : null, [firestore]);
   const { data: employees, isLoading: employeesLoading } = useCollection<Employee>(employeesCollection);
 
   const totalPages = Math.ceil((employees?.length ?? 0) / ITEMS_PER_PAGE);
@@ -92,14 +93,17 @@ export default function EmployeesPage() {
       name: "",
       email: "",
       role: "Scooper",
+      store: "Coomera",
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!employeesCollection) return;
     const newEmployee = {
         name: values.name,
         email: values.email,
         role: values.role,
+        store: values.store,
         onboardingStatus: "Pending",
     };
     addDocumentNonBlocking(employeesCollection, newEmployee);
@@ -165,28 +169,52 @@ export default function EmployeesPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a role" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Scooper">Scooper</SelectItem>
-                          <SelectItem value="Shift Lead">Shift Lead</SelectItem>
-                          <SelectItem value="Manager">Manager</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Role</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Scooper">Scooper</SelectItem>
+                            <SelectItem value="Shift Lead">Shift Lead</SelectItem>
+                            <SelectItem value="Manager">Manager</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="store"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Store</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a store" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Coomera">Coomera</SelectItem>
+                            <SelectItem value="Ipswich">Ipswich</SelectItem>
+                            <SelectItem value="Northlakes">Northlakes</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormItem>
                     <FormLabel>Onboarding Checklist</FormLabel>
                     <div className="space-y-2 rounded-md border p-4">
@@ -215,6 +243,7 @@ export default function EmployeesPage() {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Store</TableHead>
                   <TableHead>Onboarding Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -231,6 +260,7 @@ export default function EmployeesPage() {
                         </div>
                       </div>
                     </TableCell>
+                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-16" /></TableCell>
@@ -252,6 +282,7 @@ export default function EmployeesPage() {
                       </div>
                     </TableCell>
                     <TableCell>{employee.role}</TableCell>
+                    <TableCell>{employee.store}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -273,7 +304,7 @@ export default function EmployeesPage() {
                 ))}
                 {!employeesLoading && employees?.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                             No employees found.
                         </TableCell>
                     </TableRow>
@@ -281,7 +312,7 @@ export default function EmployeesPage() {
               </TableBody>
             </Table>
         </CardContent>
-        {employees && employees.length > 0 && (
+        {employees && employees.length > 0 && totalPages > 1 && (
           <CardFooter className="flex items-center justify-between pt-6">
             <div className="text-sm text-muted-foreground">
               Showing page {currentPage} of {totalPages}
@@ -329,6 +360,10 @@ export default function EmployeesPage() {
                   <Label>Role</Label>
                   <p className="text-sm text-muted-foreground">{selectedEmployee.role}</p>
                 </div>
+                 <div>
+                  <Label>Store</Label>
+                  <p className="text-sm text-muted-foreground">{selectedEmployee.store}</p>
+                </div>
                 <div>
                   <Label>Onboarding</Label>
                    <Badge
@@ -349,6 +384,5 @@ export default function EmployeesPage() {
       </Dialog>
     </>
   );
-}
 
     
